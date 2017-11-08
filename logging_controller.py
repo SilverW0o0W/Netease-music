@@ -4,9 +4,11 @@ This file for controlling multi-process logging
 """
 
 import threading
-from multiprocessing import Process, Pipe
+from multiprocessing import Process
+
 import logging
 import logging.config
+from process_handler import ProcessHandler
 
 CRITICAL = 50
 FATAL = CRITICAL
@@ -17,19 +19,16 @@ INFO = 20
 DEBUG = 10
 NOTSET = 0
 
-LOCK = threading.Lock()
 
-
-class LoggingController(object):
+class LoggingController(ProcessHandler):
     """
     Wrapper logging instance.
     """
 
     def __init__(self, config=None, logger_name=None):
+        ProcessHandler.__init__(self)
         self.config = config
-        self.pipe = Pipe(duplex=False)
         self.logger_name = logger_name
-        self.is_run = True
         log_process = Process(target=self._logger_process,
                               args=(self.pipe[0], self.config, self.logger_name,))
         log_process.start()
@@ -104,30 +103,9 @@ class LoggingController(object):
         message = [level, msg]
         self.send_message(message)
 
-    def dispose(self):
-        """
-        Send close message to log process.
-        """
-        LOCK.acquire()
-        if self.is_run:
-            self.pipe[1].send(None)
-        self.is_run = False
-        LOCK.release()
-
-    def send_message(self, message):
-        """
-        Send message to pipe
-        """
-        if not self.is_run or not message:
-            return
-        LOCK.acquire()
-        if self.is_run:
-            self.pipe[1].send(message)
-        LOCK.release()
-
 
 if __name__ == '__main__':
-    logger = LoggingController()
-    logger.error('test {0}', '1')
+    main_logger = LoggingController()
+    main_logger.error('test {0}', '1')
     while True:
         pass
