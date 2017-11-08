@@ -1,0 +1,5 @@
+<settings>
+    <setting name = "test" available="true">
+        <detail user='test' password='' host='' port=''  database=''/>
+    </setting>
+</settings>
