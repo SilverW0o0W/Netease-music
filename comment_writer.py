@@ -7,11 +7,9 @@ import threading
 from mysql_connection_pool import ConnectionPool
 from multiprocessing import Process, Pipe
 from music import CommentDetail
+from process_handler import ProcessHandler
 
-LOCK = threading.Lock()
-
-
-class CommentWriter(object):
+class CommentWriter(ProcessHandler):
     """
     For writing comment to DB
     """
@@ -19,9 +17,8 @@ class CommentWriter(object):
     __sql_insert = 'insert into comment values(null, ?, ?, ?, ?, ?, ?, ?)'
 
     def __init__(self, flush_count=5):
-        self.pipe = Pipe(duplex=False)
+        ProcessHandler.__init__(self)
         self.flush_count = flush_count
-        self.is_run = True
 
     def _writing_process(self, pipe):
         conn_pool = ConnectionPool(user='', password='', database='')
@@ -52,23 +49,3 @@ class CommentWriter(object):
                       comment.comment_time, comment.liked_count]
             params_list.append(params)
         conn.write_list(self.__sql_insert, params_list)
-
-    def send(self, data):
-        """
-        Send data to input process
-        """
-        if not self.is_run or not data:
-            return
-        LOCK.acquire()
-        if self.is_run:
-            self.pipe[1].send(data)
-        LOCK.release()
-
-    def dispose(self):
-        """
-        Close write process
-        """
-        LOCK.acquire()
-        self.pipe[1].send(None)
-        self.is_run = False
-        LOCK.release()
