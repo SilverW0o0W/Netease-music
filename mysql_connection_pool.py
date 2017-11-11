@@ -147,11 +147,11 @@ class PoolController(MysqlController):
 
 
 if __name__ == '__main__':
-    pool = ConnectionPool('username', 'password', 'database_name')
+    main_pool = ConnectionPool('username', 'password', 'database_name')
     # pool = ConnectionPool(
     #     'username', 'password', 'database_name', 'host', 'port')
-    sql = 'select * from table'
+    main_sql = 'select * from table'
     # while True:
     #     pass
-    controller = pool.get_connection()
-    result = controller.sql_read(sql)
+    main_controller = main_pool.get_connection()
+    result = main_controller.sql_read(main_sql)
