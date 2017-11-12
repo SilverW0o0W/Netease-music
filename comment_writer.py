@@ -3,9 +3,7 @@
 For write comment detail to DB
 """
 
-import threading
 from mysql_connection_pool import ConnectionPool
-from multiprocessing import Process, Pipe
 from music import CommentDetail
 from process_handler import ProcessHandler
 
