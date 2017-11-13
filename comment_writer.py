@@ -3,6 +3,7 @@
 For write comment detail to DB
 """
 
+from multiprocessing import Process
 from mysql_connection_pool import ConnectionPool
 from music import CommentDetail
 from process_handler import ProcessHandler
@@ -18,6 +19,9 @@ class CommentWriter(ProcessHandler):
     def __init__(self, flush_count=5):
         ProcessHandler.__init__(self)
         self.flush_count = flush_count
+        writer_process = Process(target=self._writing_process,
+                                 args=(self.pipe[0],))
+        writer_process.start()
 
     def _writing_process(self, pipe):
         conn_pool = ConnectionPool(user='', password='', database='')
