@@ -7,6 +7,7 @@ from mysql_connection_pool import ConnectionPool
 from music import CommentDetail
 from process_handler import ProcessHandler
 
+
 class CommentWriter(ProcessHandler):
     """
     For writing comment to DB
@@ -26,17 +27,17 @@ class CommentWriter(ProcessHandler):
             message = pipe.recv()
             if not message:
                 if buffer_count != 0:
-                    self.add_record(conn_pool.get_connection(),
-                                    buffer_comments)
+                    self._add_record(conn_pool.get_connection(),
+                                     buffer_comments)
                     conn_pool.close()
                 break
             buffer_count += 1
             buffer_comments.append(message)
             if buffer_count >= self.flush_count:
-                self.add_record(conn_pool.get_connection(), buffer_comments)
+                self._add_record(conn_pool.get_connection(), buffer_comments)
                 buffer_count = 0
 
-    def add_record(self, conn, comments):
+    def _add_record(self, conn, comments):
         """
         Add data to DB
         """

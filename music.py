@@ -15,21 +15,6 @@ class SongBase(object):
         self.album_id = album_id
 
 
-class SongComment(SongBase):
-    """
-    For comment content
-    """
-
-    def __init__(self, song_id=None, artist_ids=None, album_id=None):
-        SongBase.__init__(self, song_id, artist_ids, album_id)
-        self.comment_total = 0
-        self.offset = 0
-        self.comments = None
-        self.hot_comments = None
-        self.comment_more = False
-        self.hot_comment_more = False
-
-
 class SongHotComment(SongBase):
     """
     For hot comment content
@@ -40,6 +25,29 @@ class SongHotComment(SongBase):
         self.comment_total = 0
         self.hot_comments = None
         self.hot_comment_more = False
+
+
+class SongComment(SongHotComment):
+    """
+    For comment content
+    """
+
+    def __init__(self, song_id=None, artist_ids=None, album_id=None):
+        SongHotComment.__init__(self, song_id, artist_ids, album_id)
+        self.offset = 0
+        self.comments = None
+        self.comment_more = False
+
+    @classmethod
+    def convert_details(cls, song_comment):
+        """
+        Convert SongComment to CommentDetail
+        """
+        details = []
+        for comment in song_comment.comments:
+            detail = CommentDetail(song_comment.song_id, comment)
+            details.append(detail)
+        return details
 
 
 class CommentDetail(object):

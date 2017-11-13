@@ -4,6 +4,9 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
+import gzip
+from StringIO import StringIO
+
 import time
 import json
 import urllib
@@ -15,6 +18,7 @@ import threadpool
 from encrypto import generate_data
 from music import SongComment, SongHotComment, CommentDetail
 from proxy_ip import ProxyIPSet
+from comment_writer import CommentWriter
 from proxy_controller import ProxyController
 
 
@@ -26,9 +30,24 @@ class CommentSpider(object):
     __comment_url = "http://music.163.com/weapi/v1/resource/comments/R_SO_4_{0}/?csrf_token="
     __hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
 
-    __headers = {
+    __headers_old = {
         'Cookie': 'appver=1.5.0.75771;',
         'Referer': 'http://music.163.com/'
+    }
+
+    # POST http://music.163.com/weapi/v1/resource/comments/R_SO_4_2529311?csrf_token= HTTP/1.1
+    # Content-Length: 478
+    # 'Referer': http://music.163.com/song?id=2529311
+
+    __headers = {
+        'Host': 'music.163.com',
+        'Proxy-Connection': 'keep-alive',
+        'Origin': 'http://music.163.com',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.8'
     }
 
     __DATA_MAX_LOOP = 10
@@ -122,6 +141,9 @@ class CommentSpider(object):
                 response = self.send_request_proxy(opener, request)
             else:
                 response = urllib2.urlopen(request).read()
+                compressedstream = StringIO(response)
+                gzipper = gzip.GzipFile(fileobj=compressedstream)
+                response = gzipper.read()
         except BaseException, error:
             response = None
             # print error.message
@@ -243,6 +265,22 @@ class CommentSpider(object):
         pool.wait()
         return comment_dict
 
+    def write_song_comment(self, song_id, retry=False):
+        """
+        Write a song all comment
+        """
+        writer = CommentWriter()
+        total_comment = self.request_comment(song_id, retry=True)
+        total = total_comment.comment_total
+        data_dict = self.get_request_data_dict(total)
+        for index in data_dict:
+            temp_comment = self.request_comment(
+                song_id, request_data=data_dict[index], retry=retry)
+            temp_details = SongComment.convert_details(temp_comment)
+            for detail in temp_details:
+                writer.send_message(detail)
+        writer.dispose()
+
     def request_comment_thread(self, song_id, data, retry, index, comment_dict):
         """
         This is multi-threading request.
@@ -271,7 +309,9 @@ if __name__ == '__main__':
     # 70+ hot comment
     # comment_list = spider.get_song_hot_comment('26584163', True)
     # 60 total
-    comment_list = spider.get_song_comment('26620939', True)
+    # comment_list = spider.get_song_comment('26620939', True)
+    spider.write_song_comment('26620939', True)
+
     # comment_dict = spider.get_song_comment_multithread('26620939', True)
     # 17xxk total
     # comment_list = spider.get_song_all_comment('186016', True)
