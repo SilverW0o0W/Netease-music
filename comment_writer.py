@@ -45,10 +45,13 @@ class CommentWriter(ProcessHandler):
         """
         Add data to DB
         """
-        params_list = []
-        for comment in comments:
-            params = [comment.song_id, comment.user_id, comment.comment_id,
-                      comment.be_replied, comment.content,
-                      comment.comment_time, comment.liked_count]
-            params_list.append(params)
-        conn.write_list(self.__sql_insert, params_list)
+        try:
+            params_list = []
+            for comment in comments:
+                params = [comment.song_id, comment.user_id, comment.comment_id,
+                          comment.be_replied, comment.content,
+                          comment.comment_time, comment.liked_count]
+                params_list.append(params)
+            conn.write_list(self.__sql_insert, params_list)
+        finally:
+            conn.close()
