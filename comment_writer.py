@@ -13,7 +13,6 @@ class CommentWriter(ProcessHandler):
     """
     For writing comment to DB
     """
-
     __sql_insert = 'insert into comment values(null, ?, ?, ?, ?, ?, ?, ?)'
 
     def __init__(self, flush_count=5):
