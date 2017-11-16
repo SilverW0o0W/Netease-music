@@ -18,6 +18,7 @@ import threadpool
 from encrypto import generate_data
 from music import SongComment, SongHotComment, CommentDetail
 from proxy_ip import ProxyIPSet
+from logging_controller import LoggingController
 from comment_writer import CommentWriter
 from proxy_controller import ProxyController
 
@@ -269,7 +270,8 @@ class CommentSpider(object):
         """
         Write a song all comment
         """
-        writer = CommentWriter()
+        logger = LoggingController()
+        writer = CommentWriter(logger)
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.comment_total
         data_dict = self.get_request_data_dict(total)
