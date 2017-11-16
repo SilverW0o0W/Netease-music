@@ -12,6 +12,8 @@ import json
 import urllib
 import urllib2
 
+from datetime import datetime
+
 import threading
 import threadpool
 
@@ -280,6 +282,7 @@ class CommentSpider(object):
                 song_id, request_data=data_dict[index], retry=retry)
             temp_details = SongComment.convert_details(temp_comment)
             for detail in temp_details:
+                print datetime.fromtimestamp(float(detail.time))
                 writer.send_message(detail)
         writer.dispose()
 
