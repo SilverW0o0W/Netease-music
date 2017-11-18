@@ -12,7 +12,7 @@ CREATE TABLE `comment` (
   `comment_id` varchar(30) DEFAULT NULL,
   `be_replied` varchar(30) DEFAULT NULL,
   `content` varchar(200) DEFAULT NULL,
-  `comment_time` timestamp NULL DEFAULT NULL,
+  `comment_time` long NULL DEFAULT NULL,
   `liked_count` int(11) DEFAULT NULL,
   `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
