@@ -60,7 +60,7 @@ class CommentDetail(object):
         self.comment_id = comment['commentId'] if 'commentId' in comment else None
         self.be_replied = comment['beReplied'] if 'beReplied'in comment else None
         self.content = comment['content'] if 'content' in comment else None
-        self.time = comment['time'] if 'time' in comment else None
+        self.time = long(comment['time']) if 'time' in comment else None
         self.liked_count = comment['likedCount'] if 'likedCount' in comment else None
         user = comment['user'] if 'user' in comment else None
         self.user_id = user['userId'] if 'userId' in user else None
