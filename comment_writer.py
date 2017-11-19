@@ -13,7 +13,7 @@ class CommentWriter(ProcessHandler):
     """
     For writing comment to DB
     """
-    __sql_insert = 'insert into comment values(null, ?, ?, ?, ?, ?, ?, ?)'
+    __sql_insert = 'insert into comment(song_id,user_id,comment_id,be_replied,content,comment_time,liked_count) values(%s, %s, %s, %s, %s, %s, %s)'
 
     def __init__(self, logger, flush_count=5):
         ProcessHandler.__init__(self)

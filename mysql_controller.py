@@ -70,8 +70,8 @@ class MysqlController(object):
             for params in params_list:
                 try:
                     result = cursor.execute(sql, params)
-                    row_num += result.rowcount
-                except StandardError:
+                    print result
+                except Exception, err:
                     continue
             connect.commit()
             return row_num
