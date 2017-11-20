@@ -38,7 +38,7 @@ class MysqlController(object):
         if self.connection != None:
             self.connection.close()
 
-    def write(self, sql, params_list=None):
+    def write(self, sql, params=None):
         """
         Execute sql. For write.
         """
@@ -47,12 +47,11 @@ class MysqlController(object):
         try:
             connect = self.connection
             cursor = connect.cursor()
-            if params_list is None:
-                result = cursor.execute(sql)
+            if not params:
+                cursor.execute(sql)
             else:
-                result = cursor.execute(sql, params_list)
+                cursor.execute(sql, params)
             connect.commit()
-            return result
         finally:
             if cursor is not None:
                 cursor.close()
@@ -63,18 +62,12 @@ class MysqlController(object):
         """
         connect = None
         cursor = None
-        row_num = 0
         try:
             connect = self.connection
             cursor = connect.cursor()
             for params in params_list:
-                try:
-                    result = cursor.execute(sql, params)
-                    print result
-                except Exception, err:
-                    continue
+                cursor.execute(sql, params)
             connect.commit()
-            return row_num
         finally:
             if cursor is not None:
                 cursor.close()
