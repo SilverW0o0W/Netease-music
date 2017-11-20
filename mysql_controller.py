@@ -65,8 +65,7 @@ class MysqlController(object):
         try:
             connect = self.connection
             cursor = connect.cursor()
-            for params in params_list:
-                cursor.execute(sql, params)
+            cursor.executemany(sql, params_list)
             connect.commit()
         finally:
             if cursor is not None:
