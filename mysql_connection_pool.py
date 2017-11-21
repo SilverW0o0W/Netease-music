@@ -73,6 +73,8 @@ class ConnectionPool(object):
         """
         connection = None
         LOCK.acquire()
+        if self.pool_dispose:
+            raise Exception('Pool close.')
         try:
             connection = self.queue_available.get(timeout=timeout)
             self.connection_busy += 1
@@ -84,9 +86,9 @@ class ConnectionPool(object):
         """
         Close available connection.
         """
-        self.pool_dispose = False
         LOCK.acquire()
-        while self.queue_available.qsize > 0:
+        self.pool_dispose = True
+        while self.queue_available.qsize() > 0:
             try:
                 controller = self.queue_available.get()
                 controller.real_close()

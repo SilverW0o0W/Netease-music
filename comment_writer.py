@@ -34,6 +34,7 @@ class CommentWriter(ProcessHandler):
             if not message:
                 if buffer_count != 0:
                     self._add_record(conn_pool, buffer_comments)
+                conn_pool.close()
                 break
             buffer_count += 1
             buffer_comments.append(message)
