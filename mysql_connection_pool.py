@@ -30,8 +30,8 @@ class ConnectionPool(object):
         self.max_reference = 10
         self.queue_available = Queue(max_connection)
         self.connection_busy = 0
-        self.retry_time = 3
         self.pool_dispose = False
+        self.create_connection(max_connection)
         check_thread = threading.Thread(target=self.check_connection_thread)
         check_thread.setName('connection_checker')
         check_thread.start()
@@ -67,23 +67,17 @@ class ConnectionPool(object):
             self.queue_available.put(controller)
         LOCK.release()
 
-    def get_connection(self):
+    def get_connection(self, timeout=None):
         """
         Get connection.
         """
         connection = None
-        for i in range(self.retry_time):
-            LOCK.acquire()
-            try:
-                if self.queue_available.qsize() > 0:
-                    connection = self.queue_available.get()
-                    break
-                time.sleep(1)
-            finally:
-                LOCK.release()
-        if not connection:
-            # need more detail
-            raise Exception()
+        LOCK.acquire()
+        try:
+            connection = self.queue_available.get(timeout=timeout)
+            self.connection_busy += 1
+        finally:
+            LOCK.release()
         return connection
 
     def close(self):
@@ -148,10 +142,17 @@ class PoolController(MysqlController):
 
 if __name__ == '__main__':
     main_pool = ConnectionPool('username', 'password', 'database_name')
-    # pool = ConnectionPool(
-    #     'username', 'password', 'database_name', 'host', 'port')
-    main_sql = 'select * from table'
-    # while True:
-    #     pass
+    # main_pool = ConnectionPool('username', 'password', 'database_name', 'host', 'port')
+
+    # main_pool = ConnectionPool('username', 'password', 'database_name', max_connection=2
     main_controller = main_pool.get_connection()
-    result = main_controller.sql_read(main_sql)
+    main_controller.close()
+    main_controller = main_pool.get_connection()
+    main_controller.close()
+    main_controller2 = main_pool.get_connection()
+    main_controller = main_pool.get_connection()
+    main_controller.close()
+    main_controller2.close()
+    main_controller2 = main_pool.get_connection()
+    main_controller = main_pool.get_connection()
+    main_controller3 = main_pool.get_connection(timeout=5)
