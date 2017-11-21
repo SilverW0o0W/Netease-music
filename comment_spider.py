@@ -286,31 +286,6 @@ class CommentSpider(object):
                 writer.send_message(detail)
         writer.dispose()
 
-    def write_comment(self, song_id, retry=False):
-        """
-        Write a song all comment
-        """
-        conn = MysqlController('', '', '')
-        total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.comment_total
-        data_dict = self.get_request_data_dict(total)
-        for index in data_dict:
-            temp_comment = self.request_comment(
-                song_id, request_data=data_dict[index], retry=retry)
-            temp_details = SongComment.convert_details(temp_comment)
-            params_list = []
-            i = 0
-            for detail in temp_details:
-                if i == 5:
-                    break
-                params = (detail.song_id, detail.user_id, detail.comment_id,
-                          '', detail.content,
-                          detail.time, detail.liked_count)
-                params_list.append(params)
-                i += 1
-            conn.write_list(
-                'insert into comment(song_id,user_id,comment_id,be_replied,content,comment_time,liked_count) values(%s, %s, %s, %s, %s, %s, %s)', params_list)
-
     def request_comment_thread(self, song_id, data, retry, index, comment_dict):
         """
         This is multi-threading request.
@@ -340,8 +315,7 @@ if __name__ == '__main__':
     # comment_list = spider.get_song_hot_comment('26584163', True)
     # 60 total
     # comment_list = spider.get_song_comment('26620939', True)
-    # spider.write_song_comment('26620939', True)
-    spider.write_comment('26620939', True)
+    spider.write_song_comment('26620939', True)
 
     # comment_dict = spider.get_song_comment_multithread('26620939', True)
     # 17xxk total

@@ -10,10 +10,11 @@ CREATE TABLE `comment` (
   `song_id` varchar(20) DEFAULT NULL,
   `user_id` varchar(20) DEFAULT NULL,
   `comment_id` varchar(30) DEFAULT NULL,
-  `be_replied` varchar(30) DEFAULT NULL,
+  `replied_user_id` varchar(20) DEFAULT NULL,
+  `replied_content` varchar(200) DEFAULT NULL,
   `content` varchar(200) DEFAULT NULL,
   `comment_time` bigint(20) DEFAULT NULL,
   `liked_count` int(11) DEFAULT NULL,
   `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8;
