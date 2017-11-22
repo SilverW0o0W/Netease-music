@@ -4,7 +4,6 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
-from mysql_controller import MysqlController
 import gzip
 from StringIO import StringIO
 
@@ -13,13 +12,11 @@ import json
 import urllib
 import urllib2
 
-from datetime import datetime
-
 import threading
 import threadpool
 
 from encrypto import generate_data
-from music import SongComment, SongHotComment, CommentDetail
+from music import SongComment, SongHotComment
 from proxy_ip import ProxyIPSet
 from logging_controller import LoggingController
 from comment_writer import CommentWriter

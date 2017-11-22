@@ -5,7 +5,6 @@ For write comment detail to DB
 
 from multiprocessing import Process
 from mysql_connection_pool import ConnectionPool
-from music import CommentDetail
 from process_handler import ProcessHandler
 
 
@@ -15,7 +14,7 @@ class CommentWriter(ProcessHandler):
     """
     __sql_insert = 'insert into comment(song_id, user_id, comment_id, replied_user_id, replied_content, content, comment_time, liked_count) values(%s, %s, %s, %s, %s, %s, %s, %s)'
 
-    def __init__(self, logger, flush_count=5):
+    def __init__(self, logger, flush_count=10):
         ProcessHandler.__init__(self)
         self.flush_count = flush_count
         self.logger = logger
