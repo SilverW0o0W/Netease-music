@@ -67,6 +67,9 @@ class MysqlController(object):
             cursor = connect.cursor()
             cursor.executemany(sql, params_list)
             connect.commit()
+        except Exception, ex:
+            connect.rollback()
+            raise ex
         finally:
             if cursor is not None:
                 cursor.close()
