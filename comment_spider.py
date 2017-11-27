@@ -317,18 +317,3 @@ if __name__ == '__main__':
     # comment_dict = spider.get_song_comment_multithread('26620939', True)
     # 17xxk total
     # comment_list = spider.get_song_all_comment('186016', True)
-
-    # for comment in comment_list:
-    #     temp_list = comment.comments
-    #     for temp in temp_list[::-1]:
-    #         print temp['content']
-
-    # for index in comment_dict:
-    #     temp_list = comment_dict[index].comments
-    #     for temp in temp_list[::-1]:
-    #         print temp['content']
-
-    # for comment in comment_list:
-    #     temp_list = comment.hot_comments
-    #     for temp in temp_list:
-    #         print temp['content']
