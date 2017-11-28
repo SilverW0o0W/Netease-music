@@ -61,7 +61,8 @@ class CommentSpider(object):
 
     __proxy_lock = threading.Lock()
 
-    def __init__(self, use_proxy=False):
+    def __init__(self, use_proxy=False, logger=None):
+        self.logger = LoggingController() if not logger else logger
         self.use_proxy = use_proxy
         if use_proxy:
             self.controller_proxy = ProxyController()
@@ -266,12 +267,19 @@ class CommentSpider(object):
         pool.wait()
         return comment_dict
 
+    def request_comment_thread(self, song_id, data, retry, index, comment_dict):
+        """
+        This is multi-threading request.
+        """
+        comment = self.request_comment(
+            song_id, request_data=data, retry=retry, is_main_thread=False)
+        comment_dict[index] = comment
+
     def write_song_comment(self, song_id, retry=False):
         """
         Write a song all comment
         """
-        logger = LoggingController()
-        writer = CommentWriter(logger)
+        writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.comment_total
         data_dict = self.get_request_data_dict(total)
@@ -283,7 +291,28 @@ class CommentSpider(object):
                 writer.send_message(detail)
         writer.dispose()
 
-    def request_comment_thread(self, song_id, data, retry, index, comment_dict):
+    def write_song_comment_multithread(self, song_id, retry=False):
+        """
+        Get a song all comment
+        """
+        writer = CommentWriter(self.logger)
+        total_comment = self.request_comment(song_id, retry=True)
+        total = total_comment.comment_total
+        data_dict = self.get_request_data_dict(total)
+        comment_dict = {}
+        param_list = []
+        for index in data_dict:
+            param = ((song_id, data_dict[index],
+                      retry, index, comment_dict,), None)
+            param_list.append(param)
+        requests = threadpool.makeRequests(
+            self.write_comment_thread, param_list)
+        pool = threadpool.ThreadPool(self.__request_thread_limit)
+        [pool.putRequest(request) for request in requests]
+        pool.wait()
+        writer.dispose()
+
+    def write_comment_thread(self, song_id, data, retry, index, comment_dict):
         """
         This is multi-threading request.
         """
