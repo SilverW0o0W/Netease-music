@@ -69,12 +69,16 @@ class ProxyController(object):
         self.db_controller.init_db()
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
-        check_process = Process(
-            target=self.check_storage_process)
+        check_process = Process(name="ProxyCheck",
+                                target=self.check_storage_process)
         check_process.start()
-        verify_process = Process(
-            target=self.verify_storage_process)
+        self.logger.info(
+            "ProxyCheck start. Name: {0}, PID: {1}.", check_process.name, check_process.pid)
+        verify_process = Process(name="ProxyVerify",
+                                 target=self.verify_storage_process)
         verify_process.start()
+        self.logger.info(
+            "ProxyVerify start. Name: {0}, PID: {1}.", verify_process.name, verify_process.pid)
 
     def __new__(cls, *args, **kwargs):
         if not cls.__instance:
@@ -391,9 +395,9 @@ class ProxyController(object):
         for i in range(2):
             message = self.pipe[0].recv()
             if message == 0:
-                self.logger.debug("Recieve crawl process stop.")
+                self.logger.debug("Receive crawl process stop.")
             elif message == 1:
-                self.logger.debug("Recieve verify process stop.")
+                self.logger.debug("Receive verify process stop.")
         self.clear_stop_file()
         self.db_controller.dispose_db_connection()
         self.logger.dispose()
@@ -401,8 +405,5 @@ class ProxyController(object):
 
 if __name__ == '__main__':
     controller = ProxyController()
-# ip_set = controller.get_proxy()
     time.sleep(120)
     controller.dispose()
-    while True:
-        time.sleep(30)
