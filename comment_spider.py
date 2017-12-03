@@ -299,11 +299,10 @@ class CommentSpider(object):
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.comment_total
         data_dict = self.get_request_data_dict(total)
-        comment_dict = {}
         param_list = []
         for index in data_dict:
-            param = ((song_id, data_dict[index],
-                      retry, index, comment_dict,), None)
+            param = ((writer, song_id, data_dict[index],
+                      retry, index,), None)
             param_list.append(param)
         requests = threadpool.makeRequests(
             self.write_comment_thread, param_list)
@@ -311,14 +310,20 @@ class CommentSpider(object):
         [pool.putRequest(request) for request in requests]
         pool.wait()
         writer.dispose()
+        self.logger.dispose()
 
-    def write_comment_thread(self, song_id, data, retry, index, comment_dict):
+    def write_comment_thread(self, writer, song_id, data, retry, index):
         """
         This is multi-threading request.
         """
+        self.logger.info("Request comment start. Index: {0}", index)
         comment = self.request_comment(
             song_id, request_data=data, retry=retry, is_main_thread=False)
-        comment_dict[index] = comment
+        self.logger.info("Request comment success. Index: {0}", index)
+        details = SongComment.convert_details(comment)
+        for detail in details:
+            writer.send_message(detail)
+        self.logger.info("Write comment. Index: {0}", index)
 
     def get_song_hot_comment(self, song_id, retry=False):
         """
@@ -341,8 +346,8 @@ if __name__ == '__main__':
     # comment_list = spider.get_song_hot_comment('26584163', True)
     # 60 total
     # comment_list = spider.get_song_comment('26620939', True)
-    spider.write_song_comment('26620939', True)
-
+    # spider.write_song_comment('26620939', True)
+    spider.write_song_comment_multithread('26620939', True)
     # comment_dict = spider.get_song_comment_multithread('26620939', True)
     # 17xxk total
     # comment_list = spider.get_song_all_comment('186016', True)
