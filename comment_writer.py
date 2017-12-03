@@ -24,23 +24,25 @@ class CommentWriter(ProcessHandler):
 
     def _writing_process(self, pipe):
         self.logger.info('Writing process start')
-        conn_pool = ConnectionPool(user='', password='', database='')
-        buffer_comments = []
-        buffer_count = 0
-        while True:
-            message = pipe.recv()
-            self.logger.debug('get message. Buffer {0}', buffer_count)
-            if not message:
-                if buffer_count != 0:
+        try:
+            conn_pool = ConnectionPool(user='', password='', database='')
+            buffer_comments = []
+            buffer_count = 0
+            while True:
+                message = pipe.recv()
+                if not message:
+                    if buffer_count != 0:
+                        self._add_record(conn_pool, buffer_comments)
+                    conn_pool.close()
+                    break
+                buffer_count += 1
+                buffer_comments.append(message)
+                if buffer_count >= self.flush_count:
+                    self.logger.debug('start append')
                     self._add_record(conn_pool, buffer_comments)
-                conn_pool.close()
-                break
-            buffer_count += 1
-            buffer_comments.append(message)
-            if buffer_count >= self.flush_count:
-                self.logger.debug('start append')
-                self._add_record(conn_pool, buffer_comments)
-                buffer_count = 0
+                    buffer_count = 0
+        except Exception, ex:
+            self.logger.error("Writing process error. Reason: {0}.", ex.message)
 
     def _add_record(self, pool, comments):
         """
