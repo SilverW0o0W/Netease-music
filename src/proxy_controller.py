@@ -98,23 +98,20 @@ class ProxyController(object):
         ip_port = proxy_ip.ip + ':' + proxy_ip.port
         proxies = {transfer_method: ip_port}
         url = self.__check_https_url if proxy_ip.is_https else self.__check_http_url
-        result = False
-        retry = 0
-        headers = {'Connection': 'close'}
-        while not result and retry < 3:
-            try:
-                response = requests.get(url, proxies=proxies, timeout=15, headers=headers)
-                result = response.status_code == 200
-                # Check fake proxy
-                self.logger.debug("IP: {0}. Url: {1}", ip_port, response.url)
-                if result and response.url != url:
-                    result = False
-                    break
-                retry += 1
-                response.close()
-            except BaseException, ex:
-                self.logger.warn(ex.message)
-                continue
+        requests.adapters.DEFAULT_RETRIES = 5
+        session = requests.Session()
+        session.keep_alive = False
+        headers = {'Connection': 'False'}
+        try:
+            response = session.get(url, proxies=proxies,
+                                   timeout=5, headers=headers)
+            temp_content = response.content
+            result = response.status_code == 200 and response.url == url
+        except requests.exceptions.RequestException, ex:
+            result = False
+        finally:
+            session.close()
+            time.sleep(0.1)
         proxy_ip.available = result
         return result
 
@@ -134,7 +131,6 @@ class ProxyController(object):
         Check proxy available and add into sqlite db.
         """
         split_num = self.__thread_list_split
-        print len(proxy_ip_list)
         times = len(proxy_ip_list) // split_num
         proxy_ip_split_list = []
         for i in range(times + 1):
@@ -158,6 +154,7 @@ class ProxyController(object):
                     continue
                 else:
                     insert_list.append(proxy_ip)
+        self.logger.debug('Ready to write db. Count: {0}', len(insert_list))
         self.insert_proxy_list_db(insert_list, False)
 
     def get_proxy(self, count=10, is_main_thread=True):
@@ -262,7 +259,8 @@ class ProxyController(object):
             if count < self.__min_storage:
                 self.crawl_proxy_ip()
             else:
-                time.sleep(self.__crawl_check_seconds)
+                time.sleep(self.__crawl_check_seconds - 5)
+            time.sleep(5)
         self.logger.info('Crawl process close')
         self.pipe[1].send(0)
 
@@ -285,6 +283,8 @@ class ProxyController(object):
                 False, self.__proxy_spider_page)
             if self.should_run():
                 self.add_proxy_list(proxy_ip_list)
+        except Exception, ex:
+            self.logger.warn('Crawl proxy exception. Reason: {0}.', ex.message)
         finally:
             self.logger.info('Crawl proxy done')
 
@@ -314,7 +314,7 @@ class ProxyController(object):
         while self.should_run():
             self.verify_proxy()
             for i in range(self.__verify_check_seconds / 10):
-                if not self.should_run:
+                if not self.should_run():
                     break
                 time.sleep(10)
         self.logger.info('Verify process close')
