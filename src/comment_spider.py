@@ -4,11 +4,7 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
-import gzip
-from StringIO import StringIO
-
 import time
-import json
 
 import threading
 import threadpool
