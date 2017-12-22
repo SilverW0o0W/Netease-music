@@ -7,10 +7,10 @@ import os
 import random
 import time
 from datetime import datetime, timedelta
-import urllib2
 
 import threading
 from multiprocessing import Process, Pipe
+import requests
 from logging_controller import LoggingController
 
 import threadpool
@@ -30,8 +30,6 @@ class ProxyController(object):
 
     __check_http_url = 'http://silvercodingcat.com/python/2017/08/09/Proxy-Spider-Check/'
     __check_https_url = ''
-    __check_retry_time = 3
-    __thread_timeout = 15
     __thread_list_split = 3
 
     __process_stop_file = 'process.stop'
@@ -92,30 +90,28 @@ class ProxyController(object):
                 LOCK.release()
         return cls.__instance
 
-    def send_check_request(self, opener, url):
-        """
-        Send request to check server
-        """
-        response = opener.open(url, timeout=self.__thread_timeout)
-        return response.code == 200 and response.url == url
-
     def check_proxy(self, proxy_ip):
         """
         Check proxy available. Timeout: 15s. Retry: 3 times.
         """
         transfer_method = 'https' if proxy_ip.is_https else 'http'
         ip_port = proxy_ip.ip + ':' + proxy_ip.port
-        proxy_data = {transfer_method: ip_port}
-        check_url = self.__check_https_url if proxy_ip.is_https else self.__check_http_url
-        proxy_handler = urllib2.ProxyHandler(proxy_data)
-        opener = urllib2.build_opener(proxy_handler)
-        result = False
-        for i in range(self.__check_retry_time):
-            try:
-                result = self.send_check_request(opener, check_url)
-                break
-            except BaseException:
-                continue
+        proxies = {transfer_method: ip_port}
+        url = self.__check_https_url if proxy_ip.is_https else self.__check_http_url
+        requests.adapters.DEFAULT_RETRIES = 5
+        session = requests.Session()
+        session.keep_alive = False
+        headers = {'Connection': 'False'}
+        try:
+            response = session.get(url, proxies=proxies,
+                                   timeout=5, headers=headers)
+            temp_content = response.content
+            result = response.status_code == 200 and response.url == url
+        except requests.exceptions.RequestException, ex:
+            result = False
+        finally:
+            session.close()
+            time.sleep(0.1)
         proxy_ip.available = result
         return result
 
@@ -135,7 +131,6 @@ class ProxyController(object):
         Check proxy available and add into sqlite db.
         """
         split_num = self.__thread_list_split
-        print len(proxy_ip_list)
         times = len(proxy_ip_list) // split_num
         proxy_ip_split_list = []
         for i in range(times + 1):
@@ -143,9 +138,9 @@ class ProxyController(object):
             last = (i + 1) * split_num if i < times else len(proxy_ip_list)
             proxy_ip_split_list.append(proxy_ip_list[pre:last])
         pool = threadpool.ThreadPool(self.__crawl_pool_max)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.add_proxy_list_thread, proxy_ip_split_list)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
 
     def add_proxy_list_thread(self, proxy_ip_list):
@@ -159,6 +154,7 @@ class ProxyController(object):
                     continue
                 else:
                     insert_list.append(proxy_ip)
+        self.logger.debug('Ready to write db. Count: {0}', len(insert_list))
         self.insert_proxy_list_db(insert_list, False)
 
     def get_proxy(self, count=10, is_main_thread=True):
@@ -263,7 +259,8 @@ class ProxyController(object):
             if count < self.__min_storage:
                 self.crawl_proxy_ip()
             else:
-                time.sleep(self.__crawl_check_seconds)
+                time.sleep(self.__crawl_check_seconds - 5)
+            time.sleep(5)
         self.logger.info('Crawl process close')
         self.pipe[1].send(0)
 
@@ -286,6 +283,8 @@ class ProxyController(object):
                 False, self.__proxy_spider_page)
             if self.should_run():
                 self.add_proxy_list(proxy_ip_list)
+        except Exception, ex:
+            self.logger.warn('Crawl proxy exception. Reason: {0}.', ex.message)
         finally:
             self.logger.info('Crawl proxy done')
 
@@ -315,7 +314,7 @@ class ProxyController(object):
         while self.should_run():
             self.verify_proxy()
             for i in range(self.__verify_check_seconds / 10):
-                if not self.should_run:
+                if not self.should_run():
                     break
                 time.sleep(10)
         self.logger.info('Verify process close')
@@ -341,9 +340,9 @@ class ProxyController(object):
         Check proxy ip list.
         """
         pool = threadpool.ThreadPool(self.__verify_pool_max)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.verify_proxy_ip_thread, proxy_ip_list)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
 
     def verify_proxy_ip_thread(self, proxy_ip):
@@ -371,7 +370,7 @@ class ProxyController(object):
         if self.check_process_stop_file():
             try:
                 os.remove(self.__process_stop_file)
-            except Exception, ex:
+            except BaseException, ex:
                 self.logger.warning('Delete stop file failed. Reason: {0}', ex)
 
     def should_run(self):

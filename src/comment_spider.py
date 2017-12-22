@@ -4,16 +4,11 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
-import gzip
-from StringIO import StringIO
-
 import time
-import json
-import urllib
-import urllib2
 
 import threading
 import threadpool
+import requests
 
 from encrypto import generate_data
 from music import SongComment, SongHotComment
@@ -133,23 +128,22 @@ class CommentSpider(object):
         """
         Send comment request.
         """
-        data = urllib.urlencode(data)
-        request = urllib2.Request(url, data, headers)
+        session = requests.Session()
         try:
             if proxy_ip is not None:
-                proxy_data = {'http': proxy_ip.ip + ':' + proxy_ip.port}
-                proxy_handler = urllib2.ProxyHandler(proxy_data)
-                opener = urllib2.build_opener(proxy_handler)
-                response = self.send_request_proxy(opener, request)
+                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
+                response = session.post(
+                    url, data=data, headers=headers, proxies=proxies)
+                content = response.json()
             else:
-                response = urllib2.urlopen(request).read()
-                compressedstream = StringIO(response)
-                gzipper = gzip.GzipFile(fileobj=compressedstream)
-                response = gzipper.read()
+                response = session.post(url, data=data, headers=headers)
+                content = response.json()
         except BaseException, error:
-            response = None
+            content = None
             # print error.message
-        return response
+        finally:
+            session.close()
+        return content
 
     def send_request_proxy(self, opener, request):
         """
@@ -178,9 +172,8 @@ class CommentSpider(object):
         while content is None:
             proxy_ip = self.get_proxy_ip(
                 is_main_thread) if self.use_proxy else None
-            response = self.send_request(
+            content = self.send_request(
                 url, self.__headers, request_data, proxy_ip)
-            content = self.check_content(response, proxy_ip)
             if not retry:
                 break
         if content is None:
@@ -204,9 +197,8 @@ class CommentSpider(object):
         content = None
         while content is None:
             proxy_ip = self.get_proxy_ip() if self.use_proxy else None
-            response = self.send_request(
+            content = self.send_request(
                 url, self.__headers, request_data, proxy_ip)
-            content = self.check_content(response, proxy_ip)
             if not retry:
                 break
         if content is None:
@@ -215,22 +207,6 @@ class CommentSpider(object):
         comment.hot_comments = content['hotComments']
         comment.hot_comment_more = content['hasMore']
         return comment
-
-    def check_content(self, response, proxy_ip):
-        """
-        Add an ip to the black list if it's fake
-        """
-        if response is None:
-            return None
-        if self.use_proxy:
-            try:
-                return json.loads(response)
-            except StandardError:
-                self.controller_proxy.add_black_list(proxy_ip)
-                return None
-        else:
-            content = json.loads(response)
-            return content
 
     def get_song_comment(self, song_id, retry=False):
         """
@@ -345,9 +321,9 @@ if __name__ == '__main__':
     # 70+ hot comment
     # comment_list = spider.get_song_hot_comment('26584163', True)
     # 60 total
-    # comment_list = spider.get_song_comment('26620939', True)
+    comment_list = spider.get_song_comment('26620939', True)
     # spider.write_song_comment('26620939', True)
-    spider.write_song_comment_multithread('26620939', True)
+    # spider.write_song_comment_multithread('26620939', True)
     # comment_dict = spider.get_song_comment_multithread('26620939', True)
     # 17xxk total
     # comment_list = spider.get_song_all_comment('186016', True)

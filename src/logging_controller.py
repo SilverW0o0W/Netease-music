@@ -68,6 +68,12 @@ class LoggingController(ProcessHandler):
         """
         self.log(INFO, msg, *args, **kwargs)
 
+    def warn(self, msg, *args, **kwargs):
+        """
+        Warning level
+        """
+        self.log(WARNING, msg, *args, **kwargs)
+
     def warning(self, msg, *args, **kwargs):
         """
         Warning level
