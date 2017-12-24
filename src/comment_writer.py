@@ -49,9 +49,8 @@ class CommentWriter(ProcessHandler):
         Add data to DB
         """
         try:
-            self.logger.debug('get conn')
+            self.logger.debug('Write start.')
             conn = pool.get_connection()
-            self.logger.debug('get conn ok')
             params_list = []
             for comment in comments:
                 params = [comment.song_id, comment.user_id, comment.comment_id,
@@ -60,7 +59,7 @@ class CommentWriter(ProcessHandler):
                 params_list.append(params)
             conn.write_list(self.__sql_insert, params_list)
             del comments[:]
-            self.logger.info('Write complete.')
+            self.logger.debug('Write complete.')
         except Exception, ex:
             self.logger.warning(ex.message)
         finally:
