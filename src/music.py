@@ -50,13 +50,13 @@ class SongComment(SongHotComment):
         return details
 
 
-class CommentDetail(object):
+class CommentDetail(SongBase):
     """
     For single comment
     """
 
     def __init__(self, song_id, comment):
-        self.song_id = song_id
+        SongBase.__init__(self, song_id)
         self.comment_id = comment['commentId'] if 'commentId' in comment else None
         be_replied = comment['beReplied'] if 'beReplied'in comment else None
         self._get_replied(be_replied)
@@ -77,3 +77,12 @@ class CommentDetail(object):
     def _get_user_id(self, data):
         user = data['user'] if 'user' in data else None
         return user['userId'] if user != None and 'userId' in user else None
+
+
+class SongLyric(SongBase):
+    """
+    For lyric.
+    """
+
+    def __init__(self, song_id):
+        SongBase.__init__(self, song_id)
