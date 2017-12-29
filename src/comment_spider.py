@@ -145,21 +145,6 @@ class CommentSpider(object):
             session.close()
         return content
 
-    def send_request_proxy(self, opener, request):
-        """
-        This is a function for proxy send request
-        """
-        retry = 2
-        response = None
-        for i in range(retry):
-            try:
-                response = opener.open(request, timeout=30).read()
-                break
-            except BaseException:
-                response = None
-                continue
-        return response
-
     def request_comment(self, song_id, request_data=None, retry=False, is_main_thread=True):
         """
         Send request and analysis response
