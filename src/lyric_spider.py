@@ -18,7 +18,8 @@ class LyricSpider(object):
         'Accept-Language': 'zh-CN,zh;q=0.9'
     }
 
-    lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&kv=1&tv=-1'
+    # lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&kv=1&tv=1'
+    lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
 
     def send_request(self, url):
         """
@@ -34,15 +35,22 @@ class LyricSpider(object):
             session.close()
         return content
 
+    def generate_lyric(self, song_id, content):
+        song_lyric = SongLyric(song_id)
+        song_lyric.lyric = content['lrc']['lyric']
+        song_lyric.tlyric = content['tlyric']['lyric']
+        return song_lyric
+
     def request_comment(self, song_id):
         """
         Send request and analysis response
         """
         url = str.format(self.lyric_url, song_id)
         content = self.send_request(url)
-        return content
+        lyric = self.generate_lyric(song_id, content)
+        return lyric
 
 
 if __name__ == '__main__':
     spider = LyricSpider()
-    lyric_json = spider.request_comment('520461943')
+    lyric = spider.request_comment('108931')

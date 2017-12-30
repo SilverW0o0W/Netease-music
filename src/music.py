@@ -84,5 +84,8 @@ class SongLyric(SongBase):
     For lyric.
     """
 
-    def __init__(self, song_id):
+    def __init__(self, song_id, lyric=None, tlyric=None, klyric=None):
         SongBase.__init__(self, song_id)
+        self.lyric = lyric
+        self.tlyric = tlyric
+        self.klyric = klyric
