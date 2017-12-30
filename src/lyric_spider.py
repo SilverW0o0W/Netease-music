@@ -3,6 +3,7 @@
 Download lyric and convert to .lyc file.
 """
 import requests
+from music import SongLyric
 
 
 class LyricSpider(object):
@@ -45,4 +46,3 @@ class LyricSpider(object):
 if __name__ == '__main__':
     spider = LyricSpider()
     lyric_json = spider.request_comment('520461943')
-    print 'done'
