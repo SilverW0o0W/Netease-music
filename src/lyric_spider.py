@@ -2,6 +2,7 @@
 """
 Download lyric and convert to .lyc file.
 """
+import sys
 import requests
 from music import SongLyric
 
@@ -20,6 +21,10 @@ class LyricSpider(object):
 
     # lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&kv=1&tv=1'
     lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
+
+    def __init__(self):
+        reload(sys)
+        sys.setdefaultencoding('utf8')
 
     def send_request(self, url):
         """
@@ -48,9 +53,14 @@ class LyricSpider(object):
         url = str.format(self.lyric_url, song_id)
         content = self.send_request(url)
         lyric = self.generate_lyric(song_id, content)
+        self.export_lyric_file(lyric.lyric)
         return lyric
+
+    def export_lyric_file(self, lyric):
+        with open('lyric.lrc', 'w') as f:
+            f.write(lyric)
 
 
 if __name__ == '__main__':
-    spider = LyricSpider()
-    lyric = spider.request_comment('108931')
+    main_spider = LyricSpider()
+    main_lyric = main_spider.request_comment('108931')
