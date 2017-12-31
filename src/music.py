@@ -6,13 +6,27 @@ This is music information class
 
 class SongBase(object):
     """
-    For base song information
+    For base song information.
     """
 
     def __init__(self, song_id=None, artist_ids=None, album_id=None):
         self.song_id = song_id
         self.artist_ids = artist_ids
         self.album_id = album_id
+
+
+class SongInfo(SongBase):
+    """
+    For song real information.
+    Song name, artist name and album name.
+    """
+
+    def __init__(self, song_id=None, artist_ids=None, album_id=None,
+                 song_name=None, artist_name=None, album_name=None):
+        SongBase.__init__(self, song_id, artist_ids, album_id)
+        self.song_name = song_name
+        self.artist_name = artist_name
+        self.album_name = album_name
 
 
 class SongHotComment(SongBase):
