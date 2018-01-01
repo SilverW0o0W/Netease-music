@@ -9,23 +9,27 @@ class SongBase(object):
     For base song information.
     """
 
-    def __init__(self, song_id=None, artist_ids=None, album_id=None):
+    def __init__(self, song_id=None, info=None):
         self.song_id = song_id
-        self.artist_ids = artist_ids
-        self.album_id = album_id
+        self.info = info
 
 
-class SongInfo(SongBase):
+class SongInfo(object):
     """
     For song real information.
     Song name, artist name and album name.
+    artists : tuple
+    artists[0] : artist id list
+    artists[1] : artist name list
     """
 
-    def __init__(self, song_id=None, artist_ids=None, album_id=None,
-                 song_name=None, artist_name=None, album_name=None):
-        SongBase.__init__(self, song_id, artist_ids, album_id)
+    def __init__(self, song_id=None, song_name=None,
+                 artists=None,
+                 album_id=None, album_name=None):
+        self.song_id = song_id
         self.song_name = song_name
-        self.artist_name = artist_name
+        self.artists = artists
+        self.album_id = album_id
         self.album_name = album_name
 
 
@@ -34,8 +38,8 @@ class SongHotComment(SongBase):
     For hot comment content
     """
 
-    def __init__(self, song_id=None, artist_ids=None, album_id=None):
-        SongBase.__init__(self, song_id, artist_ids, album_id)
+    def __init__(self, song_id=None):
+        SongBase.__init__(self, song_id)
         self.comment_total = 0
         self.hot_comments = None
         self.hot_comment_more = False
@@ -46,8 +50,8 @@ class SongComment(SongHotComment):
     For comment content
     """
 
-    def __init__(self, song_id=None, artist_ids=None, album_id=None):
-        SongHotComment.__init__(self, song_id, artist_ids, album_id)
+    def __init__(self, song_id=None):
+        SongHotComment.__init__(self, song_id)
         self.offset = 0
         self.comments = None
         self.comment_more = False
@@ -98,8 +102,7 @@ class SongLyric(SongBase):
     For lyric.
     """
 
-    def __init__(self, song_id, lyric=None, tlyric=None, klyric=None):
-        SongBase.__init__(self, song_id)
+    def __init__(self, song_id, info=None, lyric=None, tlyric=None):
+        SongBase.__init__(self, song_id, info=info)
         self.lyric = lyric
         self.tlyric = tlyric
-        self.klyric = klyric
