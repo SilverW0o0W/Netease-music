@@ -28,7 +28,7 @@ class InfoSpider(object):
     """
     Crawl song base info.
     """
-    url = 'http://music.163.com/m/song?id={0}'
+    url = 'http://music.163.com/api/song/detail?ids=[{0}]'
 
     def send_request(self, url):
         """
@@ -37,7 +37,7 @@ class InfoSpider(object):
         session = requests.Session()
         try:
             response = session.post(url, headers=headers)
-            content = response.content
+            content = response.json()
         except BaseException, error:
             print error.message
         finally:
@@ -50,42 +50,30 @@ class InfoSpider(object):
         """
         info = SongInfo(song_id=song_id)
         try:
-            soup = BeautifulSoup(content, "html.parser")
+            song = content['songs'][0]
             # Crawl song name
-            em_tag = soup.find('em', class_='f-ff2')
-            info.song_name = em_tag.text
-            # Crawl artists and album
-            p_tags = soup.find_all('p', class_='des s-fc4')
-            if len(p_tags) == 2:
-                self.get_artist(p_tags[0], info)
-                self.get_album(p_tags[1], info)
+            info.song_name = song['name']
+            # Crawl artists
+            self.get_artists(song['artists'], info)
+            # Crawl album
+            album = song['album']
+            info.album_id = album['id']
+            info.album_name = album['name']
         except BaseException, ex:
             print ex.message
         return info
 
-    def get_artist(self, artists, info):
+    def get_artists(self, artists, info):
         """
         Get artists info.
         """
         artists_tuple = ([], [])
-        for content in artists.contents[1].contents:
-            if content == ' / ':
-                continue
-            href = content.attrs['href']
-            artist_id = href.replace('/artist?id=', '')
-            artist_name = content.text
+        for artist in artists:
+            artist_id = artist['id']
+            artist_name = artist['name']
             artists_tuple[0].append(artist_id)
             artists_tuple[1].append(artist_name)
         info.artists = artists_tuple
-
-    def get_album(self, album, info):
-        """
-        Get album info.
-        """
-        href = album.contents[1].attrs['href']
-        album_id = href.replace('/album?id=', '')
-        info.album_id = album_id
-        info.album_name = album.contents[1].contents[0]
 
     def request_info(self, song_id):
         """
