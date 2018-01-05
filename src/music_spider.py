@@ -91,11 +91,12 @@ class LyricSpider(object):
 
     # lyric_url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&kv=1&tv=1'
     url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
-    file_name = '{0}.lrc'
+    extension_name = '{0}.lrc'
+    default_name_format = '{0} - {1}'
 
-    def __init__(self, export_dir=None, create_dir=True):
+    def __init__(self, export_dir=None, name_format=default_name_format):
         self.export_dir = export_dir
-        self.create_dir = create_dir
+        self.name_format = name_format
 
     def send_request(self, url):
         """
@@ -127,15 +128,15 @@ class LyricSpider(object):
         url = str.format(self.url, song_id)
         content = self.send_request(url)
         lyric = self.generate_lyric(song_id, song_info, content)
-        self.export_lyric_file(lyric, self.export_dir)
+        self.export(lyric, self.export_dir)
         return lyric
 
     def get_export_path(self, song_info, export_path):
         """
-        Concat lyric file name and export dir path. 
+        Concat lyric file name and export dir path.
         """
         if not song_info:
-            file_name = str.format(self.file_name, song_info.song_id)
+            file_name = str.format(self.extension_name, song_info.song_id)
         else:
             is_first = True
             for artist in song_info.artists[1]:
@@ -145,15 +146,15 @@ class LyricSpider(object):
                 else:
                     artists_name += ',' + artist
             concat_name = str.format(
-                '{0} - {1}', artists_name, song_info.song_name)
-            file_name = str.format(self.file_name, concat_name)
+                self.name_format, artists_name, song_info.song_name)
+            file_name = str.format(self.extension_name, concat_name)
         if export_path is not None and export_path.strip() != '':
             export_path = export_path.strip()
             if export_path[-1] != '/' and export_path[-1] != '\\':
                 export_path += '/'
             if os.path.isdir(export_path):
                 file_name = export_path + file_name
-            elif self.create_dir:
+            else:
                 try:
                     os.makedirs(export_path)
                     file_name = export_path + file_name
@@ -161,9 +162,11 @@ class LyricSpider(object):
                     print e.message
         return file_name
 
-    def export_lyric_file(self, song_lyric, export_path=None):
+    def export(self, song_lyric, export_path=None):
         """
-        Write lyric to file
+        Write lyric to file.
+        If song info doesn't exist, file name: song_id.lrc
+        If song info exists, default file name: artists_name[,] - song_name.lrc
         """
         file_name = self.get_export_path(song_lyric.info, export_path)
         with open(unicode(file_name, 'utf-8'), 'w') as lrc_file:
@@ -177,9 +180,15 @@ if __name__ == '__main__':
     # main_spider = LyricSpider()
     # main_lyric = main_spider.request_lyric('108931')
 
-    info_spider = InfoSpider()
-    # main_info = main_spider.request_info('108931')
-    main_info = info_spider.request_info('520461943')
+    # info_spider = InfoSpider()
+    # # main_info = main_spider.request_info('108931')
+    # main_info = info_spider.request_info('520461943')
 
-    lyric_spider = LyricSpider('D:/lyric')
-    main_lyric = lyric_spider.request_lyric('520461943', main_info)
+    # lyric_spider = LyricSpider('D:/lyric')
+    # main_lyric = lyric_spider.request_lyric('520461943', main_info)
+
+    info_spider = InfoSpider()
+    main_info = info_spider.request_info('567602')
+
+    lyric_spider = LyricSpider('D:/lyric', name_format='{1} - {0}')
+    main_lyric = lyric_spider.request_lyric('567602', main_info)
