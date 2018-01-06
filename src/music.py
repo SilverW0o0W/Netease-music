@@ -106,3 +106,12 @@ class SongLyric(SongBase):
         SongBase.__init__(self, song_id, info=info)
         self.lyric = lyric
         self.tlyric = tlyric
+
+
+class Playlist(object):
+    """
+    Playlist
+    """
+
+    def __init__(self, playlist_id):
+        self.playlist_id = playlist_id
