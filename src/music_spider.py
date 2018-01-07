@@ -23,6 +23,24 @@ headers = {
     'Accept-Language': 'zh-CN,zh;q=0.9'
 }
 
+class MusicSpider(object):
+    """
+    Base spider
+    """
+
+    def send_request(self, url):
+        """
+        Send comment request.
+        """
+        session = requests.Session()
+        try:
+            response = session.post(url, headers=headers)
+            content = response.json()
+        except BaseException, error:
+            print error.message
+        finally:
+            session.close()
+        return content
 
 class InfoSpider(object):
     """
