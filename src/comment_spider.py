@@ -63,12 +63,26 @@ class CommentSpider(object):
             self.controller_proxy = ProxyController()
             self.ip_set = ProxyIPSet()
 
+    def text(self, offset=0, limit=20):
+        """
+        Generate text
+        """
+        text = {
+            'username': '',
+            'password': '',
+            'rememberLogin': 'true',
+            'offset': offset,
+            'total': 'true',
+            'limit': limit
+        }
+        return text
+
     def get_request_data(self, once=True):
         """
         Get request encrypt data for total comment
         """
         if once:
-            return generate_data()
+            return generate_data(self.text())
         else:
             if self.__data_current >= self. __DATA_MAX_CACHE:
                 self.__data_current = 0
@@ -76,7 +90,7 @@ class CommentSpider(object):
             if self.__data_loop >= self. __DATA_MAX_LOOP:
                 self.__data_list[:] = []
                 for i in range(self.__DATA_MAX_CACHE):
-                    self.__data_list.append(generate_data())
+                    self.__data_list.append(generate_data(self.text()))
                 self.__data_loop = 0
                 self.__data_current = 0
             data = self.__data_list[self.__data_current]
@@ -91,7 +105,7 @@ class CommentSpider(object):
         page = total / limit
         page = page if total % limit == 0 else page + 1
         for i in range(page):
-            data = generate_data(i * limit, limit)
+            data = generate_data(self.text(i * limit, limit))
             data_dict[page - i - 1] = data
         return data_dict
 
