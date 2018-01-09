@@ -3,12 +3,12 @@
 Download lyric
 """
 import os
-import sys
+# import sys
 import platform
-import src.music_adapter as adapter
-# from .music_spider import MusicSpider
-reload(sys)
-sys.setdefaultencoding('utf8')
+from ..spider import music_adapter as adapter
+from ..spider import music_spider
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 
 
 class LyricExporter(object):
@@ -86,8 +86,3 @@ class LyricExporter(object):
         lyric_content = self.spider.request_lyric(song_id)
         song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
         self.create_file(song_lyric, export_path)
-
-
-if __name__ == '__main__':
-    exporter = LyricExporter('D:/lyric', name_format='{1} - {0}')
-    exporter.export('567602')
