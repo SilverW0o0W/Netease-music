@@ -3,12 +3,12 @@
 Download lyric
 """
 import os
-# import sys
+import sys
 import platform
-from ..spider import music_adapter as adapter
-from ..spider import music_spider
-# reload(sys)
-# sys.setdefaultencoding('utf8')
+from spider import music_adapter as adapter
+from spider.music_spider import MusicSpider
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 
 class LyricExporter(object):
@@ -75,14 +75,20 @@ class LyricExporter(object):
                 lyric = lyric.encode('mbcs')
             lrc_file.write(lyric)
 
-    def export(self, song_id, song_info=None, export_path=None):
+    def export(self, song_id, song_info=None, export_dir=None):
         """
         Export song lyric.
         """
+        export_dir = self.export_dir if not export_dir else export_dir
         if not song_info:
             if self.need_info:
                 info_content = self.spider.request_info(song_id)
                 song_info = adapter.adapt_info(song_id, info_content)
         lyric_content = self.spider.request_lyric(song_id)
         song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
-        self.create_file(song_lyric, export_path)
+        self.create_file(song_lyric, export_dir)
+
+
+if __name__ == '__main__':
+    exporter = LyricExporter('D:/lyric', name_format='{1} - {0}')
+    exporter.export('567602')

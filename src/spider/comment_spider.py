@@ -10,12 +10,12 @@ import threading
 import threadpool
 import requests
 
-from encrypto import generate_data
-from music import SongComment, SongHotComment
-from proxy_ip import ProxyIPSet
-from logging_controller import LoggingController
-from comment_writer import CommentWriter
-from proxy_controller import ProxyController
+from spider.encrypto import generate_data
+from spider.music import SongComment, SongHotComment
+from spider.proxy_ip import ProxyIPSet
+from spider.logging_controller import LoggingController
+from spider.comment_writer import CommentWriter
+from spider.proxy_controller import ProxyController
 
 
 class CommentSpider(object):
@@ -235,10 +235,10 @@ class CommentSpider(object):
             param = ((song_id, data_dict[index],
                       retry, index, comment_dict,), None)
             param_list.append(param)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
         pool = threadpool.ThreadPool(self.__request_thread_limit)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         return comment_dict
 
@@ -279,10 +279,10 @@ class CommentSpider(object):
             param = ((writer, song_id, data_dict[index],
                       retry, index,), None)
             param_list.append(param)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.write_comment_thread, param_list)
         pool = threadpool.ThreadPool(self.__request_thread_limit)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         writer.dispose()
         self.logger.dispose()

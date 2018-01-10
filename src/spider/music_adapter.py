@@ -2,7 +2,7 @@
 """
 This is an adapter class to convert request content to music instance.
 """
-from src.music import SongInfo, SongLyric
+from spider.music import SongInfo, SongLyric
 
 
 def adapt_info(song_id, content):
