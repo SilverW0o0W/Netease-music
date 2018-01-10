@@ -10,12 +10,12 @@ import threading
 import threadpool
 import requests
 
-from encrypto import generate_data
-from music import SongComment, SongHotComment
-from proxy_ip import ProxyIPSet
-from logging_controller import LoggingController
-from comment_writer import CommentWriter
-from proxy_controller import ProxyController
+from spider.encrypto import generate_data
+from spider.music import SongComment, SongHotComment
+from spider.proxy_ip import ProxyIPSet
+from spider.logging_controller import LoggingController
+from spider.comment_writer import CommentWriter
+from spider.proxy_controller import ProxyController
 
 
 class CommentSpider(object):
@@ -63,12 +63,26 @@ class CommentSpider(object):
             self.controller_proxy = ProxyController()
             self.ip_set = ProxyIPSet()
 
+    def text(self, offset=0, limit=20):
+        """
+        Generate text
+        """
+        text = {
+            'username': '',
+            'password': '',
+            'rememberLogin': 'true',
+            'offset': offset,
+            'total': 'true',
+            'limit': limit
+        }
+        return text
+
     def get_request_data(self, once=True):
         """
         Get request encrypt data for total comment
         """
         if once:
-            return generate_data()
+            return generate_data(self.text())
         else:
             if self.__data_current >= self. __DATA_MAX_CACHE:
                 self.__data_current = 0
@@ -76,7 +90,7 @@ class CommentSpider(object):
             if self.__data_loop >= self. __DATA_MAX_LOOP:
                 self.__data_list[:] = []
                 for i in range(self.__DATA_MAX_CACHE):
-                    self.__data_list.append(generate_data())
+                    self.__data_list.append(generate_data(self.text()))
                 self.__data_loop = 0
                 self.__data_current = 0
             data = self.__data_list[self.__data_current]
@@ -91,7 +105,7 @@ class CommentSpider(object):
         page = total / limit
         page = page if total % limit == 0 else page + 1
         for i in range(page):
-            data = generate_data(i * limit, limit)
+            data = generate_data(self.text(i * limit, limit))
             data_dict[page - i - 1] = data
         return data_dict
 
@@ -221,10 +235,10 @@ class CommentSpider(object):
             param = ((song_id, data_dict[index],
                       retry, index, comment_dict,), None)
             param_list.append(param)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
         pool = threadpool.ThreadPool(self.__request_thread_limit)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         return comment_dict
 
@@ -265,10 +279,10 @@ class CommentSpider(object):
             param = ((writer, song_id, data_dict[index],
                       retry, index,), None)
             param_list.append(param)
-        requests = threadpool.makeRequests(
+        pool_requests = threadpool.makeRequests(
             self.write_comment_thread, param_list)
         pool = threadpool.ThreadPool(self.__request_thread_limit)
-        [pool.putRequest(request) for request in requests]
+        [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         writer.dispose()
         self.logger.dispose()
