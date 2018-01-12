@@ -49,12 +49,20 @@ class MusicSpider(object):
     # url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
     def request_lyric(self, song_id):
         """
-        Send request and analysis response
+        Crawl song lyric.
         """
         url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
         url = str.format(url, song_id)
         content = self.send_request(url)
         return content
+
+    # url = 'http://music.163.com/weapi/v3/playlist/detail'
+    def request_playlist(self, playlist_id):
+        """
+        Crawl playlist detail.
+        """
+        url = 'http://music.163.com/weapi/v3/playlist/detail'
+        # data = {'id': playlist_id, 'total': 'true', 'csrf_token': csrf, 'limit': 1000, 'n': 1000, 'offset': 0}
 
 
 if __name__ == '__main__':
