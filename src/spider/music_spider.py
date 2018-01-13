@@ -2,6 +2,7 @@
 """
 Download lyric and convert to .lrc file.
 """
+import encrypto
 import requests
 from bs4 import BeautifulSoup
 
@@ -63,9 +64,19 @@ class MusicSpider(object):
         """
         url = 'http://music.163.com/weapi/v3/playlist/detail'
         # data = {'id': playlist_id, 'total': 'true', 'csrf_token': csrf, 'limit': 1000, 'n': 1000, 'offset': 0}
+        text = {
+            'id': playlist_id,
+            'total': 'true',
+            'limit': '1000',
+            'offset': '1000'
+        }
+        data = encrypto.generate_data(text)
+        content = self.send_request(url, data)
+        return content
 
 
 if __name__ == '__main__':
     music_spider = MusicSpider()
-    main_info = music_spider.request_info('567602')
-    main_lyric = music_spider.request_lyric('567602')
+    # main_info = music_spider.request_info('567602')
+    # main_lyric = music_spider.request_lyric('567602')
+    main_playlist = music_spider.request_playlist('307232987')
