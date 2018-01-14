@@ -66,9 +66,9 @@ class MusicSpider(object):
         # data = {'id': playlist_id, 'total': 'true', 'csrf_token': csrf, 'limit': 1000, 'n': 1000, 'offset': 0}
         text = {
             'id': playlist_id,
-            'total': 'true',
-            'limit': '1000',
-            'offset': '1000'
+            # 'total': 'true',
+            # 'limit': '1000',
+            # 'offset': '1000'
         }
         data = encrypto.generate_data(text)
         content = self.send_request(url, data)

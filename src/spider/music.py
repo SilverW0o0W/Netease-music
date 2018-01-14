@@ -116,4 +116,5 @@ class Playlist(object):
     def __init__(self, playlist_id):
         self.playlist_id = playlist_id
         self.creator = None
+        self.track_count = None
         self.tracks = []
