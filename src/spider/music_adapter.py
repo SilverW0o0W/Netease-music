@@ -2,7 +2,7 @@
 """
 This is an adapter class to convert request content to music instance.
 """
-from spider.music import SongInfo, SongLyric
+from spider.music import SongInfo, SongLyric, Playlist
 
 
 def adapt_info(song_id, content):
@@ -49,3 +49,16 @@ def adapt_lyric(song_id, content, song_info):
     except ValueError, error:
         print error.message
     return song_lyric
+
+
+def adapt_playlist(playlist_id, content):
+    """
+    Generate playlist from data.
+    """
+    try:
+        playlist = Playlist(playlist_id)
+        playlist.track_count = content['playlist']['trackCount']
+        # playlist.tracks = content
+    except ValueError, error:
+        print error.message
+        pass
