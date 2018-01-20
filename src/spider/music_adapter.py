@@ -58,7 +58,13 @@ def adapt_playlist(playlist_id, content):
     try:
         playlist = Playlist(playlist_id)
         playlist.track_count = content['playlist']['trackCount']
-        # playlist.tracks = content
+        # playlist.tracks = content['playlist'][]
     except ValueError, error:
         print error.message
-        pass
+    return playlist
+
+def get_tracks(content):
+    """
+    Get tracks
+    """
+    pass
