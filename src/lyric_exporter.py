@@ -88,7 +88,21 @@ class LyricExporter(object):
         song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
         self.create_file(song_lyric, export_dir)
 
+    def export_playlist(self, playlist_id, export_dir=None):
+        """
+        Export all songs in playlist
+        """
+        content = self.spider.request_playlist(playlist_id)
+        playlist = adapter.adapt_playlist(playlist_id, content)
+        for song in playlist.tracks:
+            try:
+                self.export(song.song_id, song_info=song.info,
+                            export_dir=export_dir)
+            except BaseException, ex:
+                print ex.message
+
 
 if __name__ == '__main__':
     exporter = LyricExporter('D:/lyric', name_format='{1} - {0}')
-    exporter.export('567602')
+    # exporter.export('567602')
+    # exporter.export_playlist('88966839')

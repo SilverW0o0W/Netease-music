@@ -2,7 +2,7 @@
 """
 This is an adapter class to convert request content to music instance.
 """
-from spider.music import SongInfo, SongLyric, Playlist
+from spider.music import SongBase, SongInfo, SongLyric, Playlist
 
 
 def adapt_info(song_id, content):
@@ -20,7 +20,7 @@ def adapt_info(song_id, content):
         album = song['album']
         info.album_id = album['id']
         info.album_name = album['name']
-    except BaseException, ex:
+    except KeyError, ex:
         print ex.message
     return info
 
@@ -44,9 +44,10 @@ def adapt_lyric(song_id, content, song_info):
     """
     try:
         song_lyric = SongLyric(song_id, info=song_info)
-        song_lyric.lyric = content['lrc']['lyric']
-        song_lyric.tlyric = content['tlyric']['lyric']
-    except ValueError, error:
+        # uncollected and nolyric
+        song_lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else ''
+        song_lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else ''
+    except KeyError, error:
         print error.message
     return song_lyric
 
@@ -58,13 +59,37 @@ def adapt_playlist(playlist_id, content):
     try:
         playlist = Playlist(playlist_id)
         playlist.track_count = content['playlist']['trackCount']
-        # playlist.tracks = content['playlist'][]
-    except ValueError, error:
+        playlist.tracks = get_tracks(content['playlist']['tracks'])
+    except KeyError, error:
         print error.message
     return playlist
 
-def get_tracks(content):
+
+def get_tracks(contents):
     """
     Get tracks
     """
-    pass
+    tracks = []
+    for content in contents:
+        try:
+            song = SongBase(content['id'])
+            song.info = SongInfo(song_id=song.song_id)
+            get_track_info(content, song.info)
+            tracks.append(song)
+        except KeyError, error:
+            print error.message
+    return tracks
+
+
+def get_track_info(content, info):
+    """
+    Get track info
+    """
+    try:
+        info.song_name = content['name']
+        get_artists(content['ar'], info)
+        album = content['al']
+        info.album_id = album['id']
+        info.album_name = album['name']
+    except KeyError, error:
+        print error.message

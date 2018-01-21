@@ -4,7 +4,7 @@ Download lyric and convert to .lrc file.
 """
 import encrypto
 import requests
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 
 
 class MusicSpider(object):
@@ -66,9 +66,10 @@ class MusicSpider(object):
         # data = {'id': playlist_id, 'total': 'true', 'csrf_token': csrf, 'limit': 1000, 'n': 1000, 'offset': 0}
         text = {
             'id': playlist_id,
-            # 'total': 'true',
-            # 'limit': '1000',
-            # 'offset': '1000'
+            'total': 'true',
+            # 'limit': 1000,
+            'n': 1000
+            # 'offset': 0
         }
         data = encrypto.generate_data(text)
         content = self.send_request(url, data)
