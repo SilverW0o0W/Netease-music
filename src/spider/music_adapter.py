@@ -45,8 +45,8 @@ def adapt_lyric(song_id, content, song_info):
     try:
         song_lyric = SongLyric(song_id, info=song_info)
         # uncollected and nolyric
-        song_lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else ''
-        song_lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else ''
+        song_lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
+        song_lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
     except KeyError, error:
         print error.message
     return song_lyric

@@ -69,8 +69,10 @@ class LyricExporter(object):
         If song info exists, default file name: artists_name[,] - song_name.lrc
         """
         file_name = self.get_export_path(song_lyric.info, export_path)
+        lyric = song_lyric.lyric
+        if not lyric:
+            return
         with open(unicode(file_name, 'utf-8'), 'w') as lrc_file:
-            lyric = song_lyric.lyric
             if platform.system() == 'Windows':
                 lyric = lyric.encode('mbcs')
             lrc_file.write(lyric)
