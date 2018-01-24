@@ -11,7 +11,7 @@ def match_song_id(url):
     https://music.163.com/song?id=11111111&userid=11111111
     """
     pattern = 'song\?id=\d+'
-    pass
+    return re.search(pattern, url)
 
 
 def match_playlist_id(url):
@@ -20,4 +20,4 @@ def match_playlist_id(url):
     https://music.163.com/playlist?id=11111111&userid=11111111
     """
     pattern = 'playlist\?id=\d+'
-    pass
+    return re.search(pattern, url)

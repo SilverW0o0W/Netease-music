@@ -68,7 +68,7 @@ class MusicSpider(object):
             'id': playlist_id,
             'total': 'true',
             # 'limit': 1000,
-            'n': 1000
+            'n': 10000
             # 'offset': 0
         }
         data = encrypto.generate_data(text)
