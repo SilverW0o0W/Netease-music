@@ -118,3 +118,16 @@ class Playlist(object):
         self.creator = None
         self.track_count = None
         self.tracks = []
+
+
+class User(object):
+    """
+    User
+    """
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.nickname = None
+        self.gender = None
+        self.signature = None
+        self.avatar_url = None

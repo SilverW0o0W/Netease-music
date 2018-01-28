@@ -11,10 +11,7 @@ def match_song_id(url):
     https://music.163.com/song?id=11111111&userid=11111111
     """
     pattern = r'song\?id=\d+'
-    matches = re.search(pattern, url)
-    if not matches:
-        return None
-    return re.search(r'\d+', matches.group()).group()
+    return match_id(pattern, url)
 
 
 def match_playlist_id(url):
@@ -23,12 +20,37 @@ def match_playlist_id(url):
     https://music.163.com/playlist?id=11111111&userid=11111111
     """
     pattern = r'playlist\?id=\d+'
-    matches = re.search(pattern, url)
-    if not matches:
+    return match_id(pattern, url)
+
+
+def match_user_id(url):
+    """
+    Get user id from url
+    https://music.163.com/song?id=11111111&userid=11111111
+    https://music.163.com/playlist?id=11111111&userid=11111111
+    """
+    pattern = r'userid=\d+'
+    return match_id(pattern, url)
+
+
+def match_id(pattern, url):
+    """
+    Get id from url
+    """
+    def in_match(pattern, value):
+        """
+        Match value
+        """
+        match = re.search(pattern, value)
+        match = None if not match else match.group()
+        return match
+    matched_id = in_match(pattern, url)
+    if not matched_id:
         return None
-    return re.search(r'\d+', matches.group()).group()
+    return in_match(r'\d+', matched_id)
 
 
 if __name__ == '__main__':
     test_url = 'https://music.163.com/song?id=11111111&userid=11111111'
     id = match_song_id(test_url)
+    print id
