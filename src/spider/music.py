@@ -125,7 +125,7 @@ class User(object):
     User
     """
 
-    def __init__(self, user_id):
+    def __init__(self, user_id=None):
         self.user_id = user_id
         self.nickname = None
         self.gender = None
