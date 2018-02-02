@@ -5,6 +5,7 @@ Download lyric
 import os
 import sys
 import platform
+from spider import music_utils as utils
 from spider import music_adapter as adapter
 from spider.music_spider import MusicSpider
 reload(sys)
@@ -102,6 +103,26 @@ class LyricExporter(object):
                             export_dir=export_dir)
             except BaseException, ex:
                 print ex.message
+
+    def export_url(self, url, playlist=False, export_dir=None):
+        """
+        Export file(s) from input url.
+        """
+        url_id = utils.match_playlist_id(url)
+        if not url_id:
+            if playlist:
+                raise ValueError('ID not found')
+            else:
+                url_id = utils.match_song_id(url)
+                is_playlist = False
+                if not url_id:
+                    raise ValueError('ID not found')
+        else:
+            is_playlist = True
+        if is_playlist:
+            self.export_playlist(url_id, export_dir)
+        else:
+            self.export(url_id, export_dir)
 
 
 if __name__ == '__main__':
