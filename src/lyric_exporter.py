@@ -123,9 +123,3 @@ class LyricExporter(object):
             self.export_playlist(url_id, export_dir)
         else:
             self.export(url_id, export_dir)
-
-
-if __name__ == '__main__':
-    exporter = LyricExporter('D:/lyric', name_format='{1} - {0}')
-    # exporter.export('567602')
-    # exporter.export_playlist('88966839')

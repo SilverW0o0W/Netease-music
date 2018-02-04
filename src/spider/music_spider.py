@@ -1,6 +1,6 @@
 # coding=utf-8
 """
-Download lyric and convert to .lrc file.
+Request music api
 """
 import encrypto
 import requests
@@ -23,18 +23,18 @@ class MusicSpider(object):
         'Accept-Language': 'zh-CN,zh;q=0.9'
     }
 
-    def send_request(self, url, data=None, json=True):
+    def send_request(self, url, data=None, json=True, proxies=None):
         """
         Send comment request.
         """
-        session = requests.Session()
-        try:
-            response = session.post(url, headers=self.headers, data=data)
-            content = response.json() if json else response.content
-        except BaseException, error:
-            print error.message
-        finally:
-            session.close()
+        with requests.Session() as session:
+            try:
+                response = session.post(
+                    url, headers=self.headers, data=data, proxies=proxies)
+                content = response.json() if json else response.content
+            except requests.RequestException, ex:
+                print ex.message
+                content = None
         return content
 
     # url = 'http://music.163.com/api/song/detail?ids=[{0}]'
@@ -74,10 +74,3 @@ class MusicSpider(object):
         data = encrypto.generate_data(text)
         content = self.send_request(url, data)
         return content
-
-
-if __name__ == '__main__':
-    music_spider = MusicSpider()
-    # main_info = music_spider.request_info('567602')
-    # main_lyric = music_spider.request_lyric('567602')
-    main_playlist = music_spider.request_playlist('307232987')
