@@ -48,9 +48,3 @@ def match_id(pattern, url):
     if not matched_id:
         return None
     return in_match(r'\d+', matched_id)
-
-
-if __name__ == '__main__':
-    test_url = 'https://music.163.com/song?id=11111111&userid=11111111'
-    id = match_song_id(test_url)
-    print id

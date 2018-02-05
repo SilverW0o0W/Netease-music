@@ -50,7 +50,8 @@ class ProxySpider(object):
                 self.logger.debug('Start to crawl url: %s' % url)
                 response = requests.get(url, headers=self.__header)
                 if response.status_code != 200:
-                    self.logger.warn("Response code is {0}.", response.status_code)
+                    self.logger.warn(
+                        "Response code is {0}.", response.status_code)
                 soup = BeautifulSoup(response.text, "html.parser")
                 ips = soup.findAll('tr')
                 for x in range(1, len(ips)):
@@ -66,7 +67,3 @@ class ProxySpider(object):
                 continue
         self.logger.info('Crawl ip count: %s' % len(proxy_ip_list))
         return proxy_ip_list
-
-# if __name__ == '__main__':
-#     main_spider = ProxySpider(None)
-#     main_spider.get_proxy_ip(False)

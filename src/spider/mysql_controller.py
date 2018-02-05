@@ -92,11 +92,3 @@ class MysqlController(object):
         finally:
             if cursor is not None:
                 cursor.close()
-
-
-if __name__ == '__main__':
-    # controller = MysqlController('username', 'password', 'database_name')
-    main_controller = MysqlController(
-        'username', 'password', 'database_name', 'host', 'port')
-    main_sql = 'select * from table'
-    main_result = main_controller.read(main_sql)

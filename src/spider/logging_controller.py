@@ -108,10 +108,3 @@ class LoggingController(ProcessHandler):
         msg = msg.format(*args, **kwargs)
         message = [level, msg]
         self.send_message(message)
-
-
-if __name__ == '__main__':
-    main_logger = LoggingController()
-    main_logger.error('test {0}', '1')
-    while True:
-        pass

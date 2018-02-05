@@ -140,21 +140,3 @@ class PoolController(MysqlController):
         Close connection
         """
         super(PoolController, self).close()
-
-
-if __name__ == '__main__':
-    main_pool = ConnectionPool('username', 'password', 'database_name')
-    # main_pool = ConnectionPool('username', 'password', 'database_name', 'host', 'port')
-
-    # main_pool = ConnectionPool('username', 'password', 'database_name', max_connection=2
-    main_controller = main_pool.get_connection()
-    main_controller.close()
-    main_controller = main_pool.get_connection()
-    main_controller.close()
-    main_controller2 = main_pool.get_connection()
-    main_controller = main_pool.get_connection()
-    main_controller.close()
-    main_controller2.close()
-    main_controller2 = main_pool.get_connection()
-    main_controller = main_pool.get_connection()
-    main_controller3 = main_pool.get_connection(timeout=5)

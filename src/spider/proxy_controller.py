@@ -400,9 +400,3 @@ class ProxyController(object):
         self.clear_stop_file()
         self.db_controller.dispose_db_connection()
         self.logger.dispose()
-
-
-if __name__ == '__main__':
-    controller = ProxyController()
-    time.sleep(120)
-    controller.dispose()
