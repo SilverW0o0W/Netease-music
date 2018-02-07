@@ -2,7 +2,7 @@
 """
 This is an adapter class to convert request content to music instance.
 """
-from spider.music import *
+from music import *
 
 
 def adapt_info(song_id, content):
@@ -111,3 +111,34 @@ def get_track_info(content, info):
         info.album_name = album['name']
     except KeyError, error:
         print error.message
+
+
+def get_comment(content, song_id):
+    """
+    Generate comment from data.
+    """
+    try:
+        comment = SongComment(song_id)
+        comment.total = content['total']
+        comment.comments = content['comments']
+        comment.comment_more = content['more']
+        if 'hotComments' in content:
+            comment.hot_comments = content['hotComments']
+            comment.hot_comment_more = content['moreHot']
+    except KeyError, error:
+        print error.message
+    return comment
+
+
+def get_hot_comment(content, song_id):
+    """
+    Generate hot comment from data.
+    """
+    try:
+        hot_comment = SongHotComment()
+        hot_comment.total = content['total']
+        hot_comment.hot_comments = content['hotComments']
+        hot_comment.hot_comment_more = content['hasMore']
+    except KeyError, error:
+        print error.message
+    return hot_comment

@@ -40,7 +40,7 @@ class SongHotComment(SongBase):
 
     def __init__(self, song_id=None):
         SongBase.__init__(self, song_id)
-        self.comment_total = 0
+        self.total = 0
         self.hot_comments = None
         self.hot_comment_more = False
 

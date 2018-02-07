@@ -10,12 +10,13 @@ import threading
 import threadpool
 import requests
 
-from spider.encrypto import generate_data
-from spider.music import SongComment, SongHotComment
-from spider.proxy_ip import ProxyIPSet
-from spider.logging_controller import LoggingController
-from spider.comment_writer import CommentWriter
-from spider.proxy_controller import ProxyController
+import music_adapter as adapter
+from encrypto import generate_data
+from music import SongComment, SongHotComment
+from proxy_ip import ProxyIPSet
+from logging_controller import LoggingController
+from comment_writer import CommentWriter
+from proxy_controller import ProxyController
 
 
 class CommentSpider(object):
@@ -163,7 +164,6 @@ class CommentSpider(object):
         """
         Send request and analysis response
         """
-        comment = SongComment(song_id)
         proxy_ip = None
         request_data = self.get_request_data() if request_data is None else request_data
         url = self.get_request_url(song_id)
@@ -177,19 +177,12 @@ class CommentSpider(object):
                 break
         if content is None:
             return None
-        comment.comment_total = content['total']
-        comment.comments = content['comments']
-        comment.comment_more = content['more']
-        if 'hotComments' in content:
-            comment.hot_comments = content['hotComments']
-            comment.hot_comment_more = content['moreHot']
-        return comment
+        return adapter.get_comment(content, song_id)
 
     def request_hot_comment(self, song_id, request_data=None, retry=False):
         """
         Send request and analysis response
         """
-        comment = SongHotComment(song_id)
         proxy_ip = None
         request_data = self.get_request_data() if request_data is None else request_data
         url = self.get_request_url(song_id, True)
@@ -202,17 +195,14 @@ class CommentSpider(object):
                 break
         if content is None:
             return None
-        comment.comment_total = content['total']
-        comment.hot_comments = content['hotComments']
-        comment.hot_comment_more = content['hasMore']
-        return comment
+        return adapter.get_hot_comment(content, song_id)
 
     def get_song_comment(self, song_id, retry=False):
         """
         Get a song all comment
         """
         total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.comment_total
+        total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         comment_list = []
         for index in data_dict:
@@ -226,8 +216,7 @@ class CommentSpider(object):
         Get a song all comment
         """
         total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.comment_total
-        print total
+        total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         comment_dict = {}
         param_list = []
@@ -256,7 +245,7 @@ class CommentSpider(object):
         """
         writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.comment_total
+        total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         for index in data_dict:
             temp_comment = self.request_comment(
@@ -272,7 +261,7 @@ class CommentSpider(object):
         """
         writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.comment_total
+        total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         param_list = []
         for index in data_dict:
@@ -305,7 +294,7 @@ class CommentSpider(object):
         Get a song all hot comment.
         """
         total_comment = self.request_hot_comment(song_id, retry=True)
-        total = total_comment.comment_total
+        total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         comment_list = []
         for index in data_dict:
