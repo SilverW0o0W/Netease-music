@@ -10,6 +10,8 @@ pip install beautifulsoup4
 
 # pycryto
 # Crypto
+pip install pycrypto
+pip install crypto
 
 # mysql-connector
 pip install mysql-connector==2.1.4
