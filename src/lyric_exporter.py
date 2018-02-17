@@ -77,6 +77,7 @@ class LyricExporter(object):
             if platform.system() == 'Windows':
                 lyric = lyric.encode('mbcs')
             lrc_file.write(lyric)
+            return file_name
 
     def export(self, song_id, song_info=None, export_dir=None):
         """
@@ -89,7 +90,7 @@ class LyricExporter(object):
                 song_info = adapter.adapt_info(song_id, info_content)
         lyric_content = self.spider.request_lyric(song_id)
         song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
-        self.create_file(song_lyric, export_dir)
+        return self.create_file(song_lyric, export_dir)
 
     def export_playlist(self, playlist_id, export_dir=None):
         """
@@ -97,12 +98,15 @@ class LyricExporter(object):
         """
         content = self.spider.request_playlist(playlist_id)
         playlist = adapter.adapt_playlist(playlist_id, content)
+        path_dict = {}
         for song in playlist.tracks:
             try:
-                self.export(song.song_id, song_info=song.info,
-                            export_dir=export_dir)
+                path = self.export(song.song_id, song_info=song.info,
+                                   export_dir=export_dir)
+                path_dict[song.song_id] = path
             except BaseException, ex:
                 print ex.message
+        return path_dict
 
     def export_url(self, url, playlist=False, export_dir=None):
         """
@@ -120,6 +124,6 @@ class LyricExporter(object):
         else:
             is_playlist = True
         if is_playlist:
-            self.export_playlist(url_id, export_dir)
+            return self.export_playlist(url_id, export_dir)
         else:
-            self.export(url_id, export_dir)
+            return self.export(url_id, export_dir)
