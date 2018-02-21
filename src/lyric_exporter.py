@@ -8,6 +8,7 @@ import platform
 from spider import music_utils as utils
 from spider import music_adapter as adapter
 from spider.music_spider import MusicSpider
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 
@@ -54,14 +55,14 @@ class LyricExporter(object):
             if export_path[-1] != '/' and export_path[-1] != '\\':
                 export_path += '/'
             if os.path.isdir(export_path):
-                file_name = export_path + file_name
+                full_name = export_path + file_name
             else:
                 try:
                     os.makedirs(export_path)
-                    file_name = export_path + file_name
+                    full_name = export_path + file_name
                 except OSError, e:
                     print e.message
-        return file_name
+        return file_name, full_name
 
     def create_file(self, song_lyric, export_path=None):
         """
@@ -73,7 +74,7 @@ class LyricExporter(object):
         lyric = song_lyric.lyric
         if not lyric:
             return
-        with open(unicode(file_name, 'utf-8'), 'w') as lrc_file:
+        with open(unicode(file_name[1], 'utf-8'), 'w') as lrc_file:
             if platform.system() == 'Windows':
                 lyric = lyric.encode('mbcs')
             lrc_file.write(lyric)
@@ -101,9 +102,10 @@ class LyricExporter(object):
         path_dict = {}
         for song in playlist.tracks:
             try:
-                path = self.export(song.song_id, song_info=song.info,
-                                   export_dir=export_dir)
-                path_dict[song.song_id] = path
+                file_name = self.export(song.song_id, song_info=song.info,
+                                        export_dir=export_dir)
+                if file_name is not None:
+                    path_dict[song.song_id] = file_name
             except BaseException, ex:
                 print ex.message
         return path_dict
