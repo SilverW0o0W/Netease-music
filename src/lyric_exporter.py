@@ -93,14 +93,15 @@ class LyricExporter(object):
         song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
         return self.create_file(song_lyric, export_dir)
 
-    def export_playlist(self, playlist_id, export_dir=None):
+    def export_songs(self, song_list, export_dir=None):
         """
-        Export all songs in playlist
+        Export songs of list
+        :param song_list:List of Song object
+        :param export_dir:Directory of export path
+        :return:Dict of file_name:full_path
         """
-        content = self.spider.request_playlist(playlist_id)
-        playlist = adapter.adapt_playlist(playlist_id, content)
         path_dict = {}
-        for song in playlist.tracks:
+        for song in song_list:
             try:
                 file_name = self.export(song.song_id, song_info=song.info,
                                         export_dir=export_dir)
@@ -109,6 +110,14 @@ class LyricExporter(object):
             except BaseException, ex:
                 print ex.message
         return path_dict
+
+    def export_playlist(self, playlist_id, export_dir=None):
+        """
+        Export all songs in playlist
+        """
+        content = self.spider.request_playlist(playlist_id)
+        playlist = adapter.adapt_playlist(playlist_id, content)
+        return self.export_songs(playlist.tracks, export_dir=export_dir)
 
     def export_url(self, url, playlist=False, export_dir=None):
         """
