@@ -9,6 +9,7 @@ from spider.mysql_connection_pool import ConnectionPool
 from spider.mysql_controller import MysqlController
 from spider.proxy_controller import ProxyController
 from lyric_exporter import LyricExporter
+from spider.comment_spider import CommentSpider
 
 
 def music_spider():
@@ -52,9 +53,22 @@ def mysql_controller():
 
 
 def proxy_controller():
-    controller = ProxyController()
+    controller = ProxyController(False)
     time.sleep(120)
     controller.dispose()
+
+
+def comment_spider():
+    spider = CommentSpider(True)
+    # 70+ hot comment
+    # comment_list = spider.get_song_hot_comment('26584163', True)
+    # 60 total
+    # comment_list = spider.get_song_comment('26620939', True)
+    # spider.write_song_comment('26620939', True)
+    spider.write_song_comment_multithread('26620939', True)
+    # comment_dict = spider.get_song_comment_multithread('26620939', True)
+    # 17xxk total
+    # comment_list = spider.get_song_all_comment('186016', True)
 
 
 if __name__ == '__main__':
@@ -63,3 +77,5 @@ if __name__ == '__main__':
     # mysql_connection_pool()
     # mysql_controller()
     proxy_controller()
+    # comment_spider()
+    print('done')

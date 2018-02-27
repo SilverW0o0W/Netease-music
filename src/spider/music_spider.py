@@ -4,6 +4,8 @@ Request music api
 """
 import encrypto
 import requests
+
+
 # from bs4 import BeautifulSoup
 
 
@@ -33,6 +35,9 @@ class MusicSpider(object):
                     url, headers=self.headers, data=data, proxies=proxies)
                 content = response.json() if json else response.content
             except requests.RequestException, ex:
+                print ex.message
+                content = None
+            except ValueError, ex:
                 print ex.message
                 content = None
         return content

@@ -14,9 +14,9 @@ class ProxySpider(object):
     """
     This is the class for crawling ip from proxy site
     """
-    __user_agent = 'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0'
-    __header = {}
-    __header['User-Agent'] = __user_agent
+    _user_agent = 'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0'
+    _header = {}
+    _header['User-Agent'] = _user_agent
 
     def __init__(self, logger):
         self.last_page = 0
@@ -37,7 +37,7 @@ class ProxySpider(object):
         self.last_page += page_count
         return page
 
-    def get_proxy_ip(self, need_https, page_count=2):
+    def get_proxy_ip(self, https, page_count=2):
         """
         Get proxy ip
         """
@@ -48,7 +48,7 @@ class ProxySpider(object):
             try:
                 url = 'http://www.xicidaili.com/nn/' + str(i)
                 self.logger.debug('Start to crawl url: %s' % url)
-                response = requests.get(url, headers=self.__header)
+                response = requests.get(url, headers=self._header)
                 if response.status_code != 200:
                     self.logger.warn(
                         "Response code is {0}.", response.status_code)
@@ -60,7 +60,7 @@ class ProxySpider(object):
                     is_https = tds[5].contents[0] == 'HTTPS'
                     ip_temp = ProxyIP(tds[1].contents[0],
                                       tds[2].contents[0], is_https)
-                    if need_https == ip_temp.is_https:
+                    if https == ip_temp.is_https:
                         proxy_ip_list.append(ip_temp)
             except StandardError, error:
                 self.logger.warn(error.message)

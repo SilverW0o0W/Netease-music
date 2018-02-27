@@ -8,13 +8,13 @@ import time
 
 import threading
 import threadpool
-import requests
 
 import music_adapter as adapter
 from encrypto import generate_data
 from music import SongComment, SongHotComment
 from proxy_ip import ProxyIPSet
 from logging_controller import LoggingController
+from music_spider import MusicSpider
 from comment_writer import CommentWriter
 from proxy_controller import ProxyController
 
@@ -24,17 +24,8 @@ class CommentSpider(object):
     Spider part
     """
 
-    __comment_url = "http://music.163.com/weapi/v1/resource/comments/R_SO_4_{0}/?csrf_token="
-    __hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
-
-    __headers_old = {
-        'Cookie': 'appver=1.5.0.75771;',
-        'Referer': 'http://music.163.com/'
-    }
-
-    # POST http://music.163.com/weapi/v1/resource/comments/R_SO_4_2529311?csrf_token= HTTP/1.1
-    # Content-Length: 478
-    # 'Referer': http://music.163.com/song?id=2529311
+    _comment_url = "http://music.163.com/weapi/v1/resource/comments/R_SO_4_{0}/?csrf_token="
+    _hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
 
     __headers = {
         'Host': 'music.163.com',
@@ -59,9 +50,10 @@ class CommentSpider(object):
 
     def __init__(self, use_proxy=False, logger=None):
         self.logger = LoggingController() if not logger else logger
+        self.spider = MusicSpider()
         self.use_proxy = use_proxy
         if use_proxy:
-            self.controller_proxy = ProxyController()
+            self.controller_proxy = ProxyController(https=False)
             self.ip_set = ProxyIPSet()
 
     def text(self, offset=0, limit=20):
@@ -85,10 +77,10 @@ class CommentSpider(object):
         if once:
             return generate_data(self.text())
         else:
-            if self.__data_current >= self. __DATA_MAX_CACHE:
+            if self.__data_current >= self.__DATA_MAX_CACHE:
                 self.__data_current = 0
                 self.__data_loop += 1
-            if self.__data_loop >= self. __DATA_MAX_LOOP:
+            if self.__data_loop >= self.__DATA_MAX_LOOP:
                 self.__data_list[:] = []
                 for i in range(self.__DATA_MAX_CACHE):
                     self.__data_list.append(generate_data(self.text()))
@@ -134,45 +126,23 @@ class CommentSpider(object):
         """
         Get concat request url
         """
-        if hot_comment:
-            return str.format(self.__hot_comment_url, song_id)
-        else:
-            return str.format(self.__comment_url, song_id)
-
-    def send_request(self, url, headers, data, proxy_ip=None):
-        """
-        Send comment request.
-        """
-        session = requests.Session()
-        try:
-            if proxy_ip is not None:
-                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
-                response = session.post(
-                    url, data=data, headers=headers, proxies=proxies)
-                content = response.json()
-            else:
-                response = session.post(url, data=data, headers=headers)
-                content = response.json()
-        except BaseException, error:
-            content = None
-            # print error.message
-        finally:
-            session.close()
-        return content
+        url = self._hot_comment_url if hot_comment else self._comment_url
+        return str.format(url, song_id)
 
     def request_comment(self, song_id, request_data=None, retry=False, is_main_thread=True):
         """
         Send request and analysis response
         """
-        proxy_ip = None
         request_data = self.get_request_data() if request_data is None else request_data
         url = self.get_request_url(song_id)
         content = None
         while content is None:
             proxy_ip = self.get_proxy_ip(
                 is_main_thread) if self.use_proxy else None
-            content = self.send_request(
-                url, self.__headers, request_data, proxy_ip)
+            proxies = None
+            if proxy_ip is not None:
+                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
+            content = self.spider.send_request(url, data=request_data, proxies=proxies)
             if not retry:
                 break
         if content is None:
@@ -183,14 +153,14 @@ class CommentSpider(object):
         """
         Send request and analysis response
         """
-        proxy_ip = None
         request_data = self.get_request_data() if request_data is None else request_data
         url = self.get_request_url(song_id, True)
         content = None
         while content is None:
             proxy_ip = self.get_proxy_ip() if self.use_proxy else None
-            content = self.send_request(
-                url, self.__headers, request_data, proxy_ip)
+            if proxy_ip is not None:
+                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
+            content = self.spider.send_request(url, request_data, proxies=proxies)
             if not retry:
                 break
         if content is None:
@@ -302,16 +272,3 @@ class CommentSpider(object):
                 song_id, request_data=data_dict[index], retry=retry)
             comment_list.append(temp_comment)
         return comment_list[::-1]
-
-
-if __name__ == '__main__':
-    spider = CommentSpider(False)
-    # 70+ hot comment
-    # comment_list = spider.get_song_hot_comment('26584163', True)
-    # 60 total
-    comment_list = spider.get_song_comment('26620939', True)
-    # spider.write_song_comment('26620939', True)
-    # spider.write_song_comment_multithread('26620939', True)
-    # comment_dict = spider.get_song_comment_multithread('26620939', True)
-    # 17xxk total
-    # comment_list = spider.get_song_all_comment('186016', True)
