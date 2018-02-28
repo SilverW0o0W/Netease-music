@@ -30,7 +30,7 @@ class ProxyController(object):
     _instance = None
 
     _http_url = 'http://info.cern.ch/'
-    _http_title = '<title>http://info.cern.ch</title>'
+    _http_title = 'http://info.cern.ch'
     _https_url = 'https://github.com/'
     _https_title = ''
     _thread_list_split = 3
@@ -70,10 +70,14 @@ class ProxyController(object):
         self.db_controller.init_db()
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
-        # check_process = Process(name="ProxyCheck", target=self.check_storage_process)
-        # check_process.start()
-        # self.logger.info("ProxyCheck start. Name: {0}, PID: {1}.",
-        #                  check_process.name, check_process.pid)
+
+        self.crawl_pool = None
+        check_process = Process(name="ProxyCheck", target=self.check_storage_process)
+        check_process.start()
+        self.logger.info("ProxyCheck start. Name: {0}, PID: {1}.",
+                         check_process.name, check_process.pid)
+
+        self.verify_pool = None
         verify_process = Process(name="ProxyVerify", target=self.verify_storage_process)
         verify_process.start()
         self.logger.info("ProxyVerify start. Name: {0}, PID: {1}.",
@@ -91,28 +95,28 @@ class ProxyController(object):
                 LOCK.release()
         return cls._instance
 
-    def check_proxy(self, proxy_ip):
+    def check_proxy(self, proxy):
         """
         Check proxy available. Timeout: 15s. Retry: 3 times.
         """
-        transfer_method = 'https' if proxy_ip.is_https else 'http'
-        ip_port = proxy_ip.ip + ':' + proxy_ip.port
+        transfer_method = 'https' if proxy.https else 'http'
+        ip_port = proxy.ip + ':' + proxy.port
         proxies = {transfer_method: ip_port}
-        url = self._https_url if proxy_ip.is_https else self._http_url
-        requests.adapters.DEFAULT_RETRIES = 5
+        url = self._https_url if proxy.https else self._http_url
+        requests.adapters.DEFAULT_RETRIES = 3
         session = requests.Session()
         session.keep_alive = False
         headers = {'Connection': 'False'}
         try:
-            response = session.get(url, proxies=proxies, timeout=5, headers=headers)
-            result = self.check_response(response, url)
+            response = session.get(url, proxies=proxies, timeout=10, headers=headers)
+            proxy.available = self.check_response(response, url)
+            return proxy.available
         except requests.exceptions.RequestException, ex:
-            result = False
+            proxy.available = False
+            return False
         finally:
             session.close()
             time.sleep(0.1)
-        proxy_ip.available = result
-        return result
 
     def check_response(self, response, url):
         """
@@ -127,110 +131,107 @@ class ProxyController(object):
         soup = BeautifulSoup(response.text, "html.parser")
         title = soup.title
         check_title = self._https_title if self.https else self._http_title
-        return title is not None and title == check_title
+        return title is not None and title.string == check_title
 
-    def add_proxy(self, proxy_ip):
+    def add_proxy(self, proxy):
         """
         Check proxy available and add into sqlite db.
         """
-        if self.check_proxy(proxy_ip):
-            if self.check_proxy_exist(proxy_ip):
+        if self.check_proxy(proxy):
+            if self.is_recorded(proxy):
                 return False
             else:
-                self.insert_proxy_db(proxy_ip)
+                self.insert_proxy(proxy)
                 return True
 
-    def add_proxy_list(self, proxy_ip_list):
+    def add_proxies(self, proxies):
         """
         Check proxy available and add into sqlite db.
         """
         split_num = self._thread_list_split
-        times = len(proxy_ip_list) // split_num
-        proxy_ip_split_list = []
+        times = len(proxies) // split_num
+        split_list = []
         for i in range(times + 1):
             pre = i * split_num
-            last = (i + 1) * split_num if i < times else len(proxy_ip_list)
-            proxy_ip_split_list.append(proxy_ip_list[pre:last])
-        pool = threadpool.ThreadPool(self._crawl_pool_max)
+            last = (i + 1) * split_num if i < times else len(proxies)
+            split_list.append(proxies[pre:last])
+        self.logger.info('Proxy list length: {0}.', len(split_list))
         pool_requests = threadpool.makeRequests(
-            self.add_proxy_list_thread, proxy_ip_split_list)
-        [pool.putRequest(request) for request in pool_requests]
-        pool.wait()
+            self.add_proxies_thread, split_list)
+        [self.crawl_pool.putRequest(request) for request in pool_requests]
+        self.crawl_pool.wait()
 
-    def add_proxy_list_thread(self, proxy_ip_list):
+    def add_proxies_thread(self, proxies):
         """
         Multi-Threading check proxy.
         """
         insert_list = []
-        for proxy_ip in proxy_ip_list:
-            if self.check_proxy(proxy_ip):
-                if self.check_proxy_exist(proxy_ip):
-                    continue
-                else:
-                    insert_list.append(proxy_ip)
-        self.logger.debug('Ready to write db. Count: {0}', len(insert_list))
-        self.insert_proxy_list_db(insert_list, False)
+        for proxy in proxies:
+            if self.check_proxy(proxy):
+                if not self.is_recorded(proxy):
+                    insert_list.append(proxy)
+        if len(insert_list) > 0:
+            self.logger.debug('Write proxies to db. Count: {0}', len(insert_list))
+        self.insert_proxies(insert_list, False)
 
     def get_proxy(self, count=10, is_main_thread=True):
         """
-        Get proxy list from splite and check available
+        Get proxy list from sqlite and check available
         """
-        ip_value_list = self.select_proxy_db(count, is_main_thread)
-        ip_list = self.convert_proxy_ip(ip_value_list)
-        random.shuffle(ip_list)
-        return ProxyIPSet(ip_list)
+        ip_value_list = self.select_proxies(count, is_main_thread)
+        proxies = self.convert_proxies(ip_value_list)
+        random.shuffle(proxies)
+        return ProxyIPSet(proxies)
 
-    def insert_proxy_db(self, proxy_ip, is_main_thread=True):
+    def insert_proxy(self, proxy, is_main_thread=True):
         """
         Insert proxy ip info to sqlite db file.
         """
         sql = self._sql_insert
-        params_list = (proxy_ip.ip, proxy_ip.port,
-                       1 if proxy_ip.is_https else 0, 1 if proxy_ip.available else 0)
+        params_list = (proxy.ip, proxy.port,
+                       1 if proxy.https else 0, 1 if proxy.available else 0)
         return self.db_controller.write(sql, params_list, is_main_thread)
 
-    def insert_proxy_list_db(self, proxy_ip_list, is_main_thread=True):
+    def insert_proxies(self, proxies, is_main_thread=True):
         """
         Insert proxy ip info to sqlite db file.
         """
         ip_params_list = []
         sql = self._sql_insert
-        for proxy_ip in proxy_ip_list:
-            ip_params = (proxy_ip.ip, proxy_ip.port,
-                         1 if proxy_ip.is_https else 0, 1 if proxy_ip.available else 0)
+        for proxy in proxies:
+            ip_params = (proxy.ip, proxy.port,
+                         1 if proxy.https else 0, 1 if proxy.available else 0)
             ip_params_list.append(ip_params)
         return self.db_controller.write_list(sql, ip_params_list, is_main_thread)
 
-    def delete_proxy_db(self, proxy_ip, is_main_thread=True):
+    def delete_proxy(self, proxy, is_main_thread=True):
         """
         Delete proxy ip info from sqlite db file.
         """
-        sql = self._sql_delete
-        params_list = []
-        params_list.append(proxy_ip.db_id)
-        return self.db_controller.write(sql, params_list, is_main_thread)
+        return self.db_controller.write(self._sql_delete,
+                                        (proxy.db_id,), is_main_thread)
 
-    def update_proxy_db(self, proxy_ip, is_main_thread=True):
+    def update_proxy(self, proxy, is_main_thread=True):
         """
         Update proxy ip info in sqlite db file.
         """
         sql = self._sql_update
-        params_list = (proxy_ip.ip, proxy_ip.port, 1 if proxy_ip.is_https else 0,
-                       1 if proxy_ip.available else 0, proxy_ip.verify_time, proxy_ip.db_id)
+        params_list = (proxy.ip, proxy.port, 1 if proxy.https else 0,
+                       1 if proxy.available else 0, proxy.verify_time, proxy.db_id)
         return self.db_controller.write(sql, params_list, is_main_thread)
 
-    def convert_proxy_ip(self, ip_value_list):
+    def convert_proxies(self, proxy_value_list):
         """
         Convert data from db to proxy_ip instance
         """
-        ip_list = []
-        for ip_value in ip_value_list:
-            ip_temp = ProxyIP(ip_value[1], ip_value[2],
-                              ip_value[3] == 1, ip_value[4] == 1, ip_value[5], ip_value[6], ip_value[0])
-            ip_list.append(ip_temp)
-        return ip_list
+        proxies = []
+        for proxy_value in proxy_value_list:
+            proxy = ProxyIP(proxy_value[1], proxy_value[2],
+                              proxy_value[3] == 1, proxy_value[4] == 1, proxy_value[5], proxy_value[6], proxy_value[0])
+            proxies.append(proxy)
+        return proxies
 
-    def select_proxy_db(self, count=None, is_main_thread=True):
+    def select_proxies(self, count=None, is_main_thread=True):
         """
         Select proxy ip in sqlite
         """
@@ -243,14 +244,10 @@ class ProxyController(object):
         else:
             sql = self._sql_select_available_limit
             params_list = (str_available_time, self.db_https, count, 0,)
-        result_set = self.db_controller.read(sql, params_list, is_main_thread)
-        if not result_set or len(result_set) < self._min_available:
-            pass
-        proxy_ip_list = []
-        for result in result_set:
-            proxy_ip = result
-            proxy_ip_list.append(proxy_ip)
-        return proxy_ip_list
+        proxies_set = self.db_controller.read(sql, params_list, is_main_thread)
+        if not proxies_set:
+            proxies_set = []
+        return proxies_set
 
     def get_db_count(self, is_main_thread=True):
         """
@@ -267,62 +264,59 @@ class ProxyController(object):
         """
         Check db storage status
         """
+        self.crawl_pool = threadpool.ThreadPool(self._crawl_pool_max)
         while self.should_run():
+
             count = self.get_db_count(False)
             if count < self._min_storage:
-                self.crawl_proxy_ip()
+                self.crawl_proxy()
             else:
                 time.sleep(self._crawl_check_seconds - 5)
             time.sleep(5)
         self.logger.info('Crawl process close')
         self.pipe[1].send(0)
 
-    def check_proxy_exist(self, proxy_ip):
+    def is_recorded(self, proxy):
         """
         Check proxy existed in sqlite
         """
-        params_list = (proxy_ip.ip, proxy_ip.port,)
+        params_list = (proxy.ip, proxy.port,)
         result_set = self.db_controller.read(
             self._sql_select_exist, params_list, False)
         return result_set is not None and len(result_set) > 0
 
-    def crawl_proxy_ip(self):
+    def crawl_proxy(self):
         """
         Run the proxy spider to crawl new proxy ip
         """
         self.logger.info('Crawl proxy start')
         try:
-            proxy_ip_list = self.proxy_spider.get_proxy_ip(self.https, self._proxy_spider_page)
+            proxies = self.proxy_spider.get_proxies(self.https, self._proxy_spider_page)
             if self.should_run():
-                self.add_proxy_list(proxy_ip_list)
+                self.add_proxies(proxies)
         except Exception, ex:
             self.logger.warn('Crawl proxy exception. Reason: {0}.', ex.message)
         finally:
             self.logger.info('Crawl proxy done')
 
-    def select_need_check_proxy_list(self, is_main_thread=True):
+    def select_expired_proxies(self):
         """
         Select proxy ip in sqlite
         """
         delta = timedelta(minutes=self._verify_proxy_minutes)
         verify_time = datetime.now() - delta
         str_verify_time = verify_time.strftime('%Y-%m-%d %H:%M:%S')
-        params_list = []
-        params_list.append(str_verify_time)
-        params_list.append(self.db_https)
-        result_set = self.db_controller.read(self._sql_select_verify, params_list, is_main_thread)
-        if result_set is None:
-            result_set = []
-        proxy_ip_list = []
-        for result in result_set:
-            proxy_ip = result
-            proxy_ip_list.append(proxy_ip)
-        return proxy_ip_list
+        params = (str_verify_time, self.db_https,)
+        proxies_set = self.db_controller.read(self._sql_select_verify, params, False)
+        if not proxies_set:
+            proxies_set = []
+        return proxies_set
 
     def verify_storage_process(self):
         """
         Check proxy in db is still available
         """
+        self.verify_pool = threadpool.ThreadPool(self._verify_pool_max)
         while self.should_run():
             self.verify_proxy()
             for i in range(self._verify_check_seconds / 10):
@@ -334,46 +328,45 @@ class ProxyController(object):
 
     def verify_proxy(self):
         """
-        Check single proxy ip and delete inavaildable ip.
+        Check single proxy ip and delete expire ip.
         """
         self.logger.info('Verify proxy start')
         try:
-            ip_value_list = self.select_need_check_proxy_list(False)
-            proxy_ip_list = self.convert_proxy_ip(ip_value_list)
+            ip_value_list = self.select_expired_proxies()
+            proxies = self.convert_proxies(ip_value_list)
             if self.should_run():
-                self.verify_proxy_ip_list(proxy_ip_list)
+                self.verify_proxies(proxies)
         except StandardError, error:
             print error.message
         finally:
             self.logger.info('Verify proxy done')
 
-    def verify_proxy_ip_list(self, proxy_ip_list):
+    def verify_proxies(self, proxies):
         """
         Check proxy ip list.
         """
-        pool = threadpool.ThreadPool(self._verify_pool_max)
         pool_requests = threadpool.makeRequests(
-            self.verify_proxy_ip_thread, proxy_ip_list)
-        [pool.putRequest(request) for request in pool_requests]
-        pool.wait()
+            self.verify_proxy_thread, proxies)
+        [self.verify_pool.putRequest(request) for request in pool_requests]
+        self.verify_pool.wait()
 
-    def verify_proxy_ip_thread(self, proxy_ip):
+    def verify_proxy_thread(self, proxy):
         """
         Check single proxy ip and delete unreachable ip.
         """
-        if self.check_proxy(proxy_ip):
-            proxy_ip.verify_time = time.strftime(
+        if self.check_proxy(proxy):
+            proxy.verify_time = time.strftime(
                 '%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            self.update_proxy_db(proxy_ip, False)
+            self.update_proxy(proxy, False)
         else:
-            self.delete_proxy_db(proxy_ip, False)
+            self.delete_proxy(proxy, False)
 
-    def add_black_list(self, proxy_ip, is_main_thread=True):
+    def add_black_list(self, proxy, is_main_thread=True):
         """
         Add fake ip to sqlite. To not get any more
         """
-        proxy_ip.available = 0
-        self.update_proxy_db(proxy_ip, is_main_thread)
+        proxy.available = 0
+        self.update_proxy(proxy, is_main_thread)
 
     def clear_stop_file(self):
         """

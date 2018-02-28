@@ -37,7 +37,7 @@ class ProxySpider(object):
         self.last_page += page_count
         return page
 
-    def get_proxy_ip(self, https, page_count=2):
+    def get_proxies(self, https, page_count=2):
         """
         Get proxy ip
         """
@@ -60,7 +60,7 @@ class ProxySpider(object):
                     is_https = tds[5].contents[0] == 'HTTPS'
                     ip_temp = ProxyIP(tds[1].contents[0],
                                       tds[2].contents[0], is_https)
-                    if https == ip_temp.is_https:
+                    if https == ip_temp.https:
                         proxy_ip_list.append(ip_temp)
             except StandardError, error:
                 self.logger.warn(error.message)

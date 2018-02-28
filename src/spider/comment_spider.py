@@ -102,7 +102,7 @@ class CommentSpider(object):
             data_dict[page - i - 1] = data
         return data_dict
 
-    def get_proxy_ip(self, is_main_thread=True):
+    def get_proxy(self, is_main_thread=True):
         """
         Get a proxy ip from collection
         """
@@ -137,8 +137,7 @@ class CommentSpider(object):
         url = self.get_request_url(song_id)
         content = None
         while content is None:
-            proxy_ip = self.get_proxy_ip(
-                is_main_thread) if self.use_proxy else None
+            proxy_ip = self.get_proxy(is_main_thread) if self.use_proxy else None
             proxies = None
             if proxy_ip is not None:
                 proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
@@ -157,7 +156,7 @@ class CommentSpider(object):
         url = self.get_request_url(song_id, True)
         content = None
         while content is None:
-            proxy_ip = self.get_proxy_ip() if self.use_proxy else None
+            proxy_ip = self.get_proxy() if self.use_proxy else None
             if proxy_ip is not None:
                 proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
             content = self.spider.send_request(url, request_data, proxies=proxies)
