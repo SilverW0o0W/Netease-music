@@ -122,19 +122,13 @@ class CommentSpider(object):
             self.__proxy_lock.release()
         return proxy_ip
 
-    def get_request_url(self, song_id, hot_comment=False):
-        """
-        Get concat request url
-        """
-        url = self._hot_comment_url if hot_comment else self._comment_url
-        return str.format(url, song_id)
-
-    def request_comment(self, song_id, request_data=None, retry=False, is_main_thread=True):
+    def request_comment(self, song_id, request_data=None, retry=False, hot_comment=False, is_main_thread=True):
         """
         Send request and analysis response
         """
         request_data = self.get_request_data() if request_data is None else request_data
-        url = self.get_request_url(song_id)
+        url = self._hot_comment_url if hot_comment else self._comment_url
+        url = str.format(url, song_id)
         content = None
         while content is None:
             proxy_ip = self.get_proxy(is_main_thread) if self.use_proxy else None
@@ -146,25 +140,11 @@ class CommentSpider(object):
                 break
         if content is None:
             return None
-        return adapter.get_comment(content, song_id)
-
-    def request_hot_comment(self, song_id, request_data=None, retry=False):
-        """
-        Send request and analysis response
-        """
-        request_data = self.get_request_data() if request_data is None else request_data
-        url = self.get_request_url(song_id, True)
-        content = None
-        while content is None:
-            proxy_ip = self.get_proxy() if self.use_proxy else None
-            if proxy_ip is not None:
-                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
-            content = self.spider.send_request(url, request_data, proxies=proxies)
-            if not retry:
-                break
-        if content is None:
-            return None
-        return adapter.get_hot_comment(content, song_id)
+        time.sleep(2)
+        if hot_comment:
+            return adapter.get_hot_comment(content, song_id)
+        else:
+            return adapter.get_comment(content, song_id)
 
     def get_song_comment(self, song_id, retry=False):
         """
@@ -263,13 +243,13 @@ class CommentSpider(object):
         """
         Get a song all hot comment.
         """
-        total_comment = self.request_hot_comment(song_id, retry=True)
+        total_comment = self.request_comment(song_id, hot_comment=True, retry=True)
         total = total_comment.total
         data_dict = self.get_request_data_dict(total)
         comment_list = []
         for index in data_dict:
-            temp_comment = self.request_hot_comment(
-                song_id, request_data=data_dict[index], retry=retry)
+            temp_comment = self.request_comment(
+                song_id, request_data=data_dict[index], hot_comment=True, retry=retry)
             comment_list.append(temp_comment)
         return comment_list[::-1]
 
