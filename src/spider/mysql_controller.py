@@ -18,6 +18,7 @@ class MysqlController(object):
         self.database = database
         self.host = host
         self.port = port
+        self.connect_time = datetime.now()
         self.connection = self.connect()
 
     def connect(self):
@@ -27,7 +28,8 @@ class MysqlController(object):
         """
         self.connect_time = datetime.now()
         if self.port:
-            return mysql.connector.connect(user=self.user, password=self.password, database=self.database, host=self.host, port=self.port)
+            return mysql.connector.connect(user=self.user, password=self.password, database=self.database,
+                                           host=self.host, port=self.port)
         else:
             return mysql.connector.connect(user=self.user, password=self.password, database=self.database)
 
@@ -35,7 +37,7 @@ class MysqlController(object):
         """
         Close db connection
         """
-        if self.connection != None:
+        if self.connection is not None:
             self.connection.close()
 
     def write(self, sql, params=None):
@@ -43,7 +45,6 @@ class MysqlController(object):
         Execute sql. For write.
         """
         cursor = None
-        connect = None
         try:
             connect = self.connection
             cursor = connect.cursor()
@@ -78,7 +79,6 @@ class MysqlController(object):
         """
         Execute sql. For read.
         """
-        connect = None
         cursor = None
         try:
             connect = self.connection

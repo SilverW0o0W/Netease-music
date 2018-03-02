@@ -219,8 +219,8 @@ class CommentSpider(object):
         for index in data_dict:
             temp_comment = self.request_comment(
                 song_id, request_data=data_dict[index], retry=retry)
-            temp_details = SongComment.convert_details(temp_comment)
-            for detail in temp_details:
+            details = SongComment.convert_details(temp_comment)
+            for detail in details:
                 writer.send_message(detail)
         writer.dispose()
 
@@ -231,6 +231,7 @@ class CommentSpider(object):
         writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
+        self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_request_data_dict(total)
         param_list = []
         for index in data_dict:
@@ -271,3 +272,8 @@ class CommentSpider(object):
                 song_id, request_data=data_dict[index], retry=retry)
             comment_list.append(temp_comment)
         return comment_list[::-1]
+
+    def close(self):
+        if self.use_proxy:
+            self.controller_proxy.dispose()
+        self.logger.dispose()

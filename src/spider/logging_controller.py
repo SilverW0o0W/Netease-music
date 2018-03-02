@@ -25,15 +25,15 @@ class LoggingController(ProcessHandler):
     Wrapper logging instance.
     """
 
-    def __init__(self, config=None, logger_name=None):
+    def __init__(self, logger_name=None, config=None):
         ProcessHandler.__init__(self)
-        self.config = config
         self.logger_name = logger_name
-        log_process = Process(target=self._logger_process,
-                              args=(self.pipe[0], self.config, self.logger_name,))
+        self.config = config
+        log_process = Process(target=self.run_logger,
+                              args=(self.pipe[0], self.logger_name, self.config,))
         log_process.start()
 
-    def _logger_process(self, pipe, config, logger_name):
+    def run_logger(self, pipe, logger_name, config):
         if config:
             logging.config.dictConfig(config)
         else:
@@ -42,19 +42,18 @@ class LoggingController(ProcessHandler):
                                 filemode='a',
                                 filename='log.log',
                                 level='DEBUG')
-        logger = logging.getLogger(
-            logger_name) if logger_name else logging.getLogger()
+        logger = logging.getLogger(logger_name) if logger_name else logging.getLogger()
         while True:
             message = pipe.recv()
             if not message:
                 break
             logger.log(message[0], message[1])
 
-    def setLevel(self, level):
-        """
-        Set the logging level of this logger.
-        """
-        pass
+    # def setLevel(self, level):
+    #     """
+    #     Set the logging level of this logger.
+    #     """
+    #     pass
 
     def debug(self, msg, *args, **kwargs):
         """
