@@ -90,7 +90,7 @@ class CommentSpider(object):
             self.__data_current += 1
             return data
 
-    def get_request_data_dict(self, total, limit=20):
+    def get_data_dict(self, total, limit=20):
         """
         Get request encrypt data for one song
         """
@@ -152,7 +152,7 @@ class CommentSpider(object):
         """
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
-        data_dict = self.get_request_data_dict(total)
+        data_dict = self.get_data_dict(total)
         comment_list = []
         for index in data_dict:
             temp_comment = self.request_comment(
@@ -166,7 +166,7 @@ class CommentSpider(object):
         """
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
-        data_dict = self.get_request_data_dict(total)
+        data_dict = self.get_data_dict(total)
         comment_dict = {}
         param_list = []
         for index in data_dict:
@@ -195,7 +195,10 @@ class CommentSpider(object):
         writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
-        data_dict = self.get_request_data_dict(total)
+        total = 100
+        self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
+        data_dict = self.get_data_dict(total)
+        self.logger.info('Data length: {0}.', len(data_dict))
         for index in data_dict:
             temp_comment = self.request_comment(
                 song_id, request_data=data_dict[index], retry=retry)
@@ -212,7 +215,7 @@ class CommentSpider(object):
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
-        data_dict = self.get_request_data_dict(total)
+        data_dict = self.get_data_dict(total)
         param_list = []
         for index in data_dict:
             param = ((writer, song_id, data_dict[index],
@@ -245,7 +248,7 @@ class CommentSpider(object):
         """
         total_comment = self.request_comment(song_id, hot_comment=True, retry=True)
         total = total_comment.total
-        data_dict = self.get_request_data_dict(total)
+        data_dict = self.get_data_dict(total)
         comment_list = []
         for index in data_dict:
             temp_comment = self.request_comment(

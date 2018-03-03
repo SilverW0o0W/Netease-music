@@ -17,4 +17,5 @@ CREATE TABLE `comment` (
   `liked_count` int(11) DEFAULT NULL,
   `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=CHARACTER SET = utf8mb4 , COLLATE = utf8mb4_unicode_ci;
+) ENGINE=InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
