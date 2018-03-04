@@ -140,7 +140,7 @@ class CommentSpider(object):
                 break
         if content is None:
             return None
-        time.sleep(2)
+        time.sleep(1)
         if hot_comment:
             return adapter.get_hot_comment(content, song_id)
         else:
@@ -195,14 +195,15 @@ class CommentSpider(object):
         writer = CommentWriter(self.logger)
         total_comment = self.request_comment(song_id, retry=True)
         total = total_comment.total
-        total = 100
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
         self.logger.info('Data length: {0}.', len(data_dict))
         for index in data_dict:
+            self.logger.debug('Start request comment. Index: {0}.', index)
             temp_comment = self.request_comment(
                 song_id, request_data=data_dict[index], retry=retry)
             details = SongComment.convert_details(temp_comment)
+            self.logger.debug('Start send comment. Index: {0}', index)
             for detail in details:
                 writer.send_message(detail)
         writer.dispose()

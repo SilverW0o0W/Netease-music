@@ -40,6 +40,8 @@ class MusicSpider(object):
             except ValueError, ex:
                 print ex.message
                 content = None
+            except BaseException, ex:
+                print ex.message
         return content
 
     # url = 'http://music.163.com/api/song/detail?ids=[{0}]'
