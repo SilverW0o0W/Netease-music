@@ -62,7 +62,7 @@ class ProxyController(object):
     _min_available = 10
 
     def __init__(self, https):
-        self.logger = LoggingController()
+        self.logger = LoggingController(name='proxy.log')
         self.https = https
         self.db_https = 1 if https else 0
         self.proxy_spider = ProxySpider(self.logger)
@@ -227,7 +227,7 @@ class ProxyController(object):
         proxies = []
         for proxy_value in proxy_value_list:
             proxy = ProxyIP(proxy_value[1], proxy_value[2],
-                              proxy_value[3] == 1, proxy_value[4] == 1, proxy_value[5], proxy_value[6], proxy_value[0])
+                            proxy_value[3] == 1, proxy_value[4] == 1, proxy_value[5], proxy_value[6], proxy_value[0])
             proxies.append(proxy)
         return proxies
 

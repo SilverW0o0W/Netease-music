@@ -40,16 +40,16 @@ class CommentSpider(object):
 
     __DATA_MAX_LOOP = 10
     __DATA_MAX_CACHE = 10
-    __data_loop = __DATA_MAX_LOOP
-    __data_current = 0
-    __data_list = []
+    _data_loop = __DATA_MAX_LOOP
+    _data_current = 0
+    _data_list = []
 
     __request_thread_limit = 50
 
     __proxy_lock = threading.Lock()
 
-    def __init__(self, use_proxy=False, logger=None):
-        self.logger = LoggingController() if not logger else logger
+    def __init__(self, use_proxy=False):
+        self.logger = LoggingController(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
         if use_proxy:
@@ -77,17 +77,17 @@ class CommentSpider(object):
         if once:
             return generate_data(self.text())
         else:
-            if self.__data_current >= self.__DATA_MAX_CACHE:
-                self.__data_current = 0
-                self.__data_loop += 1
-            if self.__data_loop >= self.__DATA_MAX_LOOP:
-                self.__data_list[:] = []
+            if self._data_current >= self.__DATA_MAX_CACHE:
+                self._data_current = 0
+                self._data_loop += 1
+            if self._data_loop >= self.__DATA_MAX_LOOP:
+                self._data_list[:] = []
                 for i in range(self.__DATA_MAX_CACHE):
-                    self.__data_list.append(generate_data(self.text()))
-                self.__data_loop = 0
-                self.__data_current = 0
-            data = self.__data_list[self.__data_current]
-            self.__data_current += 1
+                    self._data_list.append(generate_data(self.text()))
+                self._data_loop = 0
+                self._data_current = 0
+            data = self._data_list[self._data_current]
+            self._data_current += 1
             return data
 
     def get_data_dict(self, total, limit=20):
