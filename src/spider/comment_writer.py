@@ -25,33 +25,34 @@ class CommentWriter(ProcessHandler):
     def writing_process(self, pipe):
         self.logger.info('Writing process start')
         try:
-            conn_pool = ConnectionPool(user='', password='', database='')
+            pool = ConnectionPool(user='', password='', database='', charset='utf8mb4s')
             buffer_comments = []
             buffer_count = 0
             while True:
                 message = pipe.recv()
                 if not message:
                     if buffer_count != 0:
-                        self.add_record(conn_pool, buffer_comments)
-                    conn_pool.close()
+                        self.add_record(pool, buffer_comments)
+                    pool.close()
                     break
                 buffer_count += 1
                 buffer_comments.append(message)
                 if buffer_count >= self.flush_count:
-                    self.logger.debug('start append')
-                    self.add_record(conn_pool, buffer_comments)
+                    self.add_record(pool, buffer_comments)
                     buffer_count = 0
         except BaseException, ex:
             self.logger.error("Writing process error. Reason: {0}.", ex.message)
 
     def add_record(self, pool, comments):
         """
-        Add data to DB
+        Write comment data to db
+        :param pool:ConnectPool
+        :param comments:a list of comments
+        :return:
         """
         try:
             self.logger.debug('Write start.')
             conn = pool.get_connection()
-            conn.set_encoding('utf8mb4')
             params_list = []
             for comment in comments:
                 params = [comment.song_id, comment.user_id, comment.comment_id,

@@ -18,12 +18,13 @@ class ConnectionPool(object):
     For control mysql connection.
     """
 
-    def __init__(self, user, password, database, host=None, port=None, max_connection=10):
+    def __init__(self, user, password, database, host=None, port=None, charset=None, max_connection=10):
         self.user = user
         self.password = password
         self.database = database
         self.host = host
         self.port = port
+        self.charset = charset
         self.max_connection = max_connection
         self.expire_time = 30
         self.expire_delta = timedelta(minutes=self.expire_time)
@@ -106,6 +107,8 @@ class PoolController(MysqlController):
         self.pool = pool
         MysqlController.__init__(
             self, pool.user, pool.password, pool.database, pool.host, pool.port)
+        if pool.charset is not None:
+            self.set_encoding(pool.charset)
         self.reference_count = 0
 
     # def connect(self):
@@ -113,7 +116,7 @@ class PoolController(MysqlController):
 
     def check_available(self):
         """
-        Chcek the instance connnection reference and expire
+        Check the instance connection reference and expire
         """
         if self.pool.pool_dispose:
             return False

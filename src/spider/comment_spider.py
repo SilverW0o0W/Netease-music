@@ -38,15 +38,15 @@ class CommentSpider(object):
         'Accept-Language': 'zh-CN,zh;q=0.8'
     }
 
-    __DATA_MAX_LOOP = 10
-    __DATA_MAX_CACHE = 10
-    _data_loop = __DATA_MAX_LOOP
+    _DATA_MAX_LOOP = 10
+    _DATA_MAX_CACHE = 10
+    _data_loop = _DATA_MAX_LOOP
     _data_current = 0
     _data_list = []
 
-    __request_thread_limit = 50
+    _request_thread_limit = 50
 
-    __proxy_lock = threading.Lock()
+    Lock = threading.Lock()
 
     def __init__(self, use_proxy=False):
         self.logger = LoggingController(name='comment.log')
@@ -77,12 +77,12 @@ class CommentSpider(object):
         if once:
             return generate_data(self.text())
         else:
-            if self._data_current >= self.__DATA_MAX_CACHE:
+            if self._data_current >= self._DATA_MAX_CACHE:
                 self._data_current = 0
                 self._data_loop += 1
-            if self._data_loop >= self.__DATA_MAX_LOOP:
+            if self._data_loop >= self._DATA_MAX_LOOP:
                 self._data_list[:] = []
-                for i in range(self.__DATA_MAX_CACHE):
+                for i in range(self._DATA_MAX_CACHE):
                     self._data_list.append(generate_data(self.text()))
                 self._data_loop = 0
                 self._data_current = 0
@@ -109,7 +109,7 @@ class CommentSpider(object):
         if not self.use_proxy:
             return None
         first = True
-        self.__proxy_lock.acquire()
+        self.Lock.acquire()
         try:
             while not self.ip_set.available():
                 if not first:
@@ -119,7 +119,7 @@ class CommentSpider(object):
                 first = False
             proxy_ip = self.ip_set.pop()
         finally:
-            self.__proxy_lock.release()
+            self.Lock.release()
         return proxy_ip
 
     def request_comment(self, song_id, request_data=None, retry=False, hot_comment=False, is_main_thread=True):
@@ -160,7 +160,7 @@ class CommentSpider(object):
             comment_list.append(temp_comment)
         return comment_list
 
-    def get_song_comment_multithread(self, song_id, retry=False):
+    def get_comment_multithread(self, song_id, retry=False):
         """
         Get a song all comment
         """
@@ -175,7 +175,7 @@ class CommentSpider(object):
             param_list.append(param)
         pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
-        pool = threadpool.ThreadPool(self.__request_thread_limit)
+        pool = threadpool.ThreadPool(self._request_thread_limit)
         [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         return comment_dict
@@ -188,7 +188,7 @@ class CommentSpider(object):
             song_id, request_data=data, retry=retry, is_main_thread=False)
         comment_dict[index] = comment
 
-    def write_song_comment(self, song_id, retry=False):
+    def write_comment(self, song_id, retry=False):
         """
         Write a song all comment
         """
@@ -197,18 +197,20 @@ class CommentSpider(object):
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
-        self.logger.info('Data length: {0}.', len(data_dict))
+        self.logger.info('Comment data length: {0}.', len(data_dict))
         for index in data_dict:
-            self.logger.debug('Start request comment. Index: {0}.', index)
+            self.logger.debug("Request comment start. Index: {0}.", index)
             temp_comment = self.request_comment(
                 song_id, request_data=data_dict[index], retry=retry)
+            self.logger.debug("Request comment success. Index: {0}.", index)
             details = SongComment.convert_details(temp_comment)
-            self.logger.debug('Start send comment. Index: {0}', index)
+            self.logger.debug('Send comment start. Index: {0}.', index)
             for detail in details:
                 writer.send_message(detail)
+            self.logger.debug("Send comment done. Index: {0}.", index)
         writer.dispose()
 
-    def write_song_comment_multithread(self, song_id, retry=False):
+    def write_comment_multithread(self, song_id, retry=False):
         """
         Get a song all comment
         """
@@ -217,6 +219,7 @@ class CommentSpider(object):
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
+        self.logger.info('Comment data length: {0}.', len(data_dict))
         param_list = []
         for index in data_dict:
             param = ((writer, song_id, data_dict[index],
@@ -224,7 +227,7 @@ class CommentSpider(object):
             param_list.append(param)
         pool_requests = threadpool.makeRequests(
             self.write_comment_thread, param_list)
-        pool = threadpool.ThreadPool(self.__request_thread_limit)
+        pool = threadpool.ThreadPool(self._request_thread_limit)
         [pool.putRequest(request) for request in pool_requests]
         pool.wait()
         writer.dispose()
@@ -234,16 +237,17 @@ class CommentSpider(object):
         """
         This is multi-threading request.
         """
-        self.logger.info("Request comment start. Index: {0}", index)
+        self.logger.debug("Request comment start. Index: {0}.", index)
         comment = self.request_comment(
             song_id, request_data=data, retry=retry, is_main_thread=False)
-        self.logger.info("Request comment success. Index: {0}", index)
+        self.logger.debug("Request comment success. Index: {0}.", index)
         details = SongComment.convert_details(comment)
+        self.logger.debug('Send comment start. Index: {0}.', index)
         for detail in details:
             writer.send_message(detail)
-        self.logger.info("Write comment. Index: {0}", index)
+        self.logger.debug("Send comment done. Index: {0}.", index)
 
-    def get_song_hot_comment(self, song_id, retry=False):
+    def get_hot_comment(self, song_id, retry=False):
         """
         Get a song all hot comment.
         """
