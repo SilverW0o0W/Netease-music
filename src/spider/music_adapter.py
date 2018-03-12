@@ -58,6 +58,7 @@ def adapt_playlist(playlist_id, content):
     """
     try:
         playlist = Playlist(playlist_id)
+        playlist.name = content['playlist']['name']
         playlist.creator = get_creator(content['playlist']['creator'])
         playlist.track_count = content['playlist']['trackCount']
         playlist.tracks = get_tracks(content['playlist']['tracks'])
