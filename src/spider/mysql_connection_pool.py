@@ -28,7 +28,7 @@ class ConnectionPool(object):
         self.max_connection = max_connection
         self.expire_time = 30
         self.expire_delta = timedelta(minutes=self.expire_time)
-        self.max_reference = 10
+        self.max_usage = 10
         self.queue_available = Queue(max_connection)
         self.connection_busy = 0
         self.pool_dispose = False
@@ -109,7 +109,7 @@ class PoolController(MysqlController):
             self, pool.user, pool.password, pool.database, pool.host, pool.port)
         if pool.charset is not None:
             self.set_encoding(pool.charset)
-        self.reference_count = 0
+        self.usage_times = 0
 
     # def connect(self):
     #     pass
@@ -120,7 +120,7 @@ class PoolController(MysqlController):
         """
         if self.pool.pool_dispose:
             return False
-        if self.reference_count >= self.pool.max_reference:
+        if self.usage_times >= self.pool.max_usage:
             return False
         if self.connect_time + self.pool.expire_delta < datetime.now():
             return False

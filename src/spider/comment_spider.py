@@ -27,17 +27,6 @@ class CommentSpider(object):
     _comment_url = "http://music.163.com/weapi/v1/resource/comments/R_SO_4_{0}/?csrf_token="
     _hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
 
-    __headers = {
-        'Host': 'music.163.com',
-        'Proxy-Connection': 'keep-alive',
-        'Origin': 'http://music.163.com',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': '*/*',
-        'Accept-Encoding': 'gzip, deflate',
-        'Accept-Language': 'zh-CN,zh;q=0.8'
-    }
-
     _DATA_MAX_LOOP = 10
     _DATA_MAX_CACHE = 10
     _data_loop = _DATA_MAX_LOOP
