@@ -124,16 +124,16 @@ class CommentSpider(object):
             proxies = None
             if proxy_ip is not None:
                 proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
-            content = self.spider.send_request(url, data=request_data, proxies=proxies)
+            content = self.spider.send_request(method='POST', url=url, data=request_data, proxies=proxies)
             if not retry:
                 break
         if content is None:
             return None
         time.sleep(1)
         if hot_comment:
-            return adapter.get_hot_comment(content, song_id)
+            return adapter._get_hot_comment(content, song_id)
         else:
-            return adapter.get_comment(content, song_id)
+            return adapter._get_comment(content, song_id)
 
     def get_song_comment(self, song_id, retry=False):
         """

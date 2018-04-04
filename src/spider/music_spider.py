@@ -20,19 +20,24 @@ class MusicSpider(object):
         'Origin': 'http://music.163.com',
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36',
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Referer': 'http://music.163.com/search/',
         'Accept': '*/*',
         'Accept-Encoding': 'gzip, deflate',
         'Accept-Language': 'zh-CN,zh;q=0.9'
     }
 
-    def send_request(self, url, data=None, json=True, proxies=None):
+    def send_request(self, method, url, data=None, json=True, proxies=None):
         """
         Send comment request.
         """
         with requests.Session() as session:
             try:
-                response = session.post(
-                    url, headers=self.headers, data=data, proxies=proxies)
+                response = session.request(
+                    method=method,
+                    url=url,
+                    headers=self.headers,
+                    data=data,
+                    proxies=proxies)
                 content = response.json() if json else response.content
             except requests.RequestException, ex:
                 print ex.message
@@ -44,14 +49,13 @@ class MusicSpider(object):
                 print ex.message
         return content
 
-    # url = 'http://music.163.com/api/song/detail?ids=[{0}]'
-    def request_info(self, song_id):
+    # url = 'http://music.163.com/api/song/detail?ids=[{}]'
+    def request_song(self, song_id):
         """
         Crawl song information.
         """
-        url = 'http://music.163.com/api/song/detail?ids=[{0}]'
-        url = str.format(url, song_id)
-        content = self.send_request(url)
+        url = 'http://music.163.com/api/song/detail?ids=[{}]'.format(song_id)
+        content = self.send_request(method='POST', url=url)
         return content
 
     # url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
@@ -61,7 +65,7 @@ class MusicSpider(object):
         """
         url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
         url = str.format(url, song_id)
-        content = self.send_request(url)
+        content = self.send_request(method='POST', url=url)
         return content
 
     # url = 'http://music.163.com/weapi/v3/playlist/detail'
@@ -79,5 +83,14 @@ class MusicSpider(object):
             # 'offset': 0
         }
         data = encrypto.generate_data(text)
-        content = self.send_request(url, data)
+        content = self.send_request(method='POST', url=url, data=data)
+        return content
+
+    # url = 'http://music.163.com/api/artist/12345'
+    def request_artist(self, artist_id):
+        """
+        Crawl song information.
+        """
+        url = 'http://music.163.com/api/artist/{}'.format(artist_id)
+        content = self.send_request(method='GET', url=url)
         return content
