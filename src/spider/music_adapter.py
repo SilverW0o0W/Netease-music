@@ -22,8 +22,8 @@ def adapt_song(content, object_id):
     """
     Generate info from data.
     """
-    song = Song(object_id)
     try:
+        song = Song(object_id)
         song_content = content['songs'][0]
         # Get song name
         song.name = song_content['name']
@@ -47,28 +47,29 @@ def _get_artists(contents):
     return tuple(artists_list)
 
 
-def adapt_lyric(song_id, content, song_info):
+def adapt_lyric(content, object_id, song=None):
     """
     Generate lyric from data.
     """
     try:
-        song_lyric = SongLyric(song_id, info=song_info)
+        lyric = Lyric(object_id)
+        lyric.song = song
         # uncollected and nolyric
-        song_lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
-        song_lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
+        lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
+        lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
     except KeyError, error:
         print error.message
-    return song_lyric
+    return lyric
 
 
-def adapt_playlist(playlist_id, content):
+def adapt_playlist(content, object_id):
     """
     Generate playlist from data.
     """
     try:
-        playlist = Playlist(playlist_id)
+        playlist = Playlist(object_id)
         playlist.name = content['playlist']['name']
-        playlist.creator = _get_creator(content['playlist']['creator'])
+        playlist.creator = adapt_user(content['playlist']['creator'])
         playlist.track_count = content['playlist']['trackCount']
         playlist.tracks = _get_tracks(content['playlist']['tracks'])
     except KeyError, error:
@@ -76,7 +77,7 @@ def adapt_playlist(playlist_id, content):
     return playlist
 
 
-def _get_creator(content):
+def adapt_user(content):
     """
     Get playlist creator
     """
@@ -101,26 +102,18 @@ def _get_tracks(contents):
     for content in contents:
         try:
             song = Song(content['id'])
-            # song.info = SongInfo(song_id=song.song_id)
-            _get_track_info(content, song.info)
+            # Get song name
+            song.name = content['name']
+            # Get artists
+            song.artists = _get_artists(content['ar'])
+            # Get album
+            album = Album(content['al']['id'])
+            album.name = content['al']['name']
+            song.album = album
             tracks.append(song)
         except KeyError, error:
             print error.message
-    return tracks
-
-
-def _get_track_info(content, info):
-    """
-    Get track info
-    """
-    try:
-        info.song_name = content['name']
-        _get_artists(content['ar'], info)
-        album = content['al']
-        info.album_id = album['id']
-        info.album_name = album['name']
-    except KeyError, error:
-        print error.message
+    return tuple(tracks)
 
 
 def _get_comment(content, song_id):
@@ -163,8 +156,8 @@ def adapt_artist(content, object_id, all_size=True, hot_songs=False):
     :param hot_songs: get hot songs
     :return: Artist instance
     """
-    artist = Artist(object_id)
     try:
+        artist = Artist(object_id)
         artist.name = content['artist']['name']
         artist.brief_desc = content['artist']['briefDesc']
         if all_size:
@@ -184,8 +177,15 @@ def _get_hot_songs(content):
 
 
 def adapt_album(content, object_id, has_songs=True):
-    album = Album(object_id)
+    """
+    Generate album from data.
+    :param content: JSON content
+    :param object_id: album id
+    :param has_songs: content has 'songs' attribute
+    :return: album instance
+    """
     try:
+        album = Album(object_id)
         album.name = content['album']['name']
         album.size = content['album']['size']
         album.artists = _get_artists(content['album']['artists'])

@@ -135,12 +135,13 @@ class CommentDetail(Song):
         return user['userId'] if user != None and 'userId' in user else None
 
 
-class SongLyric(Song):
+class Lyric(object):
     """
     For lyric.
     """
 
-    def __init__(self, song_id, info=None, lyric=None, tlyric=None):
-        Song.__init__(self, song_id, info=info)
-        self.lyric = lyric
-        self.tlyric = tlyric
+    def __init__(self, song_id):
+        self.song_id = song_id
+        self.song = None
+        self.lyric = None
+        self.tlyric = None
