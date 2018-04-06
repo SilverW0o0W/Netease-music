@@ -25,8 +25,8 @@ class Playlist(object):
         self.playlist_id = playlist_id
         self.name = None
         self.creator = None
-        self.track_count = None
-        self.tracks = []
+        self.track_count = -1
+        self.tracks = ()
 
 
 class Artist(object):
@@ -63,7 +63,7 @@ class User(object):
     User
     """
 
-    def __init__(self, user_id=None):
+    def __init__(self, user_id):
         self.user_id = user_id
         self.nickname = None
         self.gender = None
@@ -71,28 +71,37 @@ class User(object):
         self.avatar_url = None
 
 
-class SongHotComment(Song):
+class CommentSet(object):
     """
-    For hot comment content
+    Comment set
     """
 
-    def __init__(self, song_id=None):
-        Song.__init__(self, song_id)
-        self.total = 0
-        self.hot_comments = None
-        self.hot_comment_more = False
+    def __init__(self, song_id):
+        self.song_id = song_id
+        self.comments = ()
+        self.hot_comments = ()
+        self.more = False
+        self.more_hot = False
+        self.total = -1
+        self.offset = -1
 
 
-class SongComment(SongHotComment):
+class HotCommentSet(object):
+    """
+    Hot comment set
+    """
+
+    def __init__(self, song_id):
+        self.song_id = song_id
+        self.has_more = False
+        self.hot_comments = ()
+        self.total = -1
+
+
+class Comment(object):
     """
     For comment content
     """
-
-    def __init__(self, song_id=None):
-        SongHotComment.__init__(self, song_id)
-        self.offset = 0
-        self.comments = None
-        self.comment_more = False
 
     @classmethod
     def convert_details(cls, song_comment):
@@ -101,18 +110,17 @@ class SongComment(SongHotComment):
         """
         details = []
         for comment in song_comment.comments:
-            detail = CommentDetail(song_comment.song_id, comment)
+            detail = Comment(song_comment.song_id, comment)
             details.append(detail)
         return details
 
 
-class CommentDetail(Song):
+class Comment(object):
     """
     For single comment
     """
 
-    def __init__(self, song_id, comment):
-        Song.__init__(self, song_id)
+    def __init__(self, song_id, comment_id=None, comment=None):
         self.comment_id = comment['commentId'] if 'commentId' in comment else None
         be_replied = comment['beReplied'] if 'beReplied' in comment else None
         self.get_replied(be_replied)

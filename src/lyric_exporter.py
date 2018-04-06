@@ -87,10 +87,10 @@ class LyricExporter(object):
         export_dir = self.export_dir if not export_dir else export_dir
         if not song_info:
             if self.need_info:
-                info_content = self.spider.request_song(song_id)
-                song_info = adapter.adapt_info(song_id, info_content)
+                song_content = self.spider.request_song(song_id)
+                song = adapter.adapt_song(song_content, song_id)
         lyric_content = self.spider.request_lyric(song_id)
-        song_lyric = adapter.adapt_lyric(song_id, lyric_content, song_info)
+        song_lyric = adapter.adapt_lyric(lyric_content, song_id, song=song)
         return self.create_file(song_lyric, export_dir)
 
     def export_songs(self, song_list, export_dir=None):
