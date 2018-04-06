@@ -96,51 +96,22 @@ class HotCommentSet(object):
         self.has_more = False
         self.hot_comments = ()
         self.total = -1
+        self.offset = -1
 
 
 class Comment(object):
     """
-    For comment content
+    Comment
     """
 
-    @classmethod
-    def convert_details(cls, song_comment):
-        """
-        Convert SongComment to CommentDetail
-        """
-        details = []
-        for comment in song_comment.comments:
-            detail = Comment(song_comment.song_id, comment)
-            details.append(detail)
-        return details
-
-
-class Comment(object):
-    """
-    For single comment
-    """
-
-    def __init__(self, song_id, comment_id=None, comment=None):
-        self.comment_id = comment['commentId'] if 'commentId' in comment else None
-        be_replied = comment['beReplied'] if 'beReplied' in comment else None
-        self.get_replied(be_replied)
-        self.content = comment['content'] if 'content' in comment else None
-        self.time = long(comment['time']) if 'time' in comment else None
-        self.liked_count = comment['likedCount'] if 'likedCount' in comment else None
-        self.user_id = self.get_user_id(comment)
-
-    def get_replied(self, be_replied):
-        if not be_replied:
-            self.replied_user_id = None
-            self.replied_content = None
-        else:
-            be_replied = be_replied[0]
-            self.replied_user_id = self.get_user_id(be_replied)
-            self.replied_content = be_replied['content'] if 'content' in be_replied else None
-
-    def get_user_id(self, data):
-        user = data['user'] if 'user' in data else None
-        return user['userId'] if user != None and 'userId' in user else None
+    def __init__(self, comment_id):
+        self.comment_id = comment_id
+        self.be_replied = ()
+        self.content = None
+        self.liked = False
+        self.liked_count = -1
+        self.time = -1
+        self.user = None
 
 
 class Lyric(object):
