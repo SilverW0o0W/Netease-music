@@ -233,7 +233,6 @@ def adapt_replied_comment(content):
     """
     Generate comment from data.
     :param content: JSON content
-    :param object_id: empty id
     :return: comment instance
     """
     if not content:
@@ -246,12 +245,3 @@ def adapt_replied_comment(content):
     except KeyError, error:
         print error.message
     return comment
-#
-# def get_replied(self, be_replied):
-#     if not be_replied:
-#         self.replied_user_id = None
-#         self.replied_content = None
-#     else:
-#         be_replied = be_replied[0]
-#         self.replied_user_id = self.get_user_id(be_replied)
-#         self.replied_content = be_replied['content'] if 'content' in be_replied else None

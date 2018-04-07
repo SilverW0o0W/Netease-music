@@ -111,7 +111,7 @@ class CommentSpider(object):
             self.Lock.release()
         return proxy_ip
 
-    def request_comment(self, song_id, data=None, retry=False, hot_comment=False, is_main_thread=True):
+    def request_comment_set(self, song_id, data=None, retry=False, hot_comment=False, is_main_thread=True):
         """
         Send request and analysis response
         """
@@ -139,21 +139,21 @@ class CommentSpider(object):
         """
         Get a song all comment
         """
-        total_comment = self.request_comment(song_id, retry=True)
-        total = total_comment.total
+        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total = total_comment_set.total
         data_dict = self.get_data_dict(total)
-        comment_list = []
-        for index in data_dict:
-            temp_comment = self.request_comment(
-                song_id, data=data_dict[index], retry=retry)
-            comment_list.append(temp_comment)
-        return comment_list
+        return tuple(
+            [
+                self.request_comment_set(song_id, data=data_dict[index], retry=retry)
+                for index in data_dict
+            ]
+        )
 
     def get_comment_multithread(self, song_id, retry=False):
         """
         Get a song all comment
         """
-        total_comment = self.request_comment(song_id, retry=True)
+        total_comment = self.request_comment_set(song_id, retry=True)
         total = total_comment.total
         data_dict = self.get_data_dict(total)
         comment_dict = {}
@@ -162,6 +162,7 @@ class CommentSpider(object):
             param = ((song_id, data_dict[index],
                       retry, index, comment_dict,), None)
             param_list.append(param)
+        param_list = [ for index in data_dict]
         pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
         pool = threadpool.ThreadPool(self._request_thread_limit)
@@ -173,7 +174,7 @@ class CommentSpider(object):
         """
         This is multi-threading request.
         """
-        comment = self.request_comment(
+        comment = self.request_comment_set(
             song_id, data=data, retry=retry, is_main_thread=False)
         comment_dict[index] = comment
 
@@ -182,14 +183,14 @@ class CommentSpider(object):
         Write a song all comment
         """
         writer = CommentWriter(self.logger)
-        total_comment = self.request_comment(song_id, retry=True)
+        total_comment = self.request_comment_set(song_id, retry=True)
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
         self.logger.info('Comment data length: {0}.', len(data_dict))
         for index in data_dict:
             self.logger.debug("Request comment start. Index: {0}.", index)
-            temp_comment = self.request_comment(
+            temp_comment = self.request_comment_set(
                 song_id, data=data_dict[index], retry=retry)
             self.logger.debug("Request comment success. Index: {0}.", index)
             details = Comment.convert_details(temp_comment)
@@ -204,7 +205,7 @@ class CommentSpider(object):
         Get a song all comment
         """
         writer = CommentWriter(self.logger)
-        total_comment = self.request_comment(song_id, retry=True)
+        total_comment = self.request_comment_set(song_id, retry=True)
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
@@ -227,7 +228,7 @@ class CommentSpider(object):
         This is multi-threading request.
         """
         self.logger.debug("Request comment start. Index: {0}.", index)
-        comment = self.request_comment(
+        comment = self.request_comment_set(
             song_id, data=data, retry=retry, is_main_thread=False)
         self.logger.debug("Request comment success. Index: {0}.", index)
         details = Comment.convert_details(comment)
@@ -240,12 +241,12 @@ class CommentSpider(object):
         """
         Get a song all hot comment.
         """
-        total_comment = self.request_comment(song_id, hot_comment=True, retry=True)
+        total_comment = self.request_comment_set(song_id, hot_comment=True, retry=True)
         total = total_comment.total
         data_dict = self.get_data_dict(total)
         comment_list = []
         for index in data_dict:
-            temp_comment = self.request_comment(
+            temp_comment = self.request_comment_set(
                 song_id, data=data_dict[index], hot_comment=True, retry=retry)
             comment_list.append(temp_comment)
         return comment_list[::-1]
