@@ -1,3 +1,4 @@
+# coding=utf-8
 """
 This is the file for proxy ip class
 """
@@ -31,26 +32,20 @@ class ProxyIPSet(object):
     This is the set class for proxy ip
     """
 
-    __available_time = 2
+    _EXPIRE_TIME = 2
 
     def __init__(self, ip_list=None):
         self.ip_list = [] if ip_list is None else ip_list
         self.create_time = datetime.now()
-
-    def count(self):
-        """
-        Get set count
-        """
-        return len(self.ip_list)
 
     def available(self):
         """
         Check set count and available time
         """
         time_now = datetime.now()
-        if self.count() < 1:
+        if len(self.ip_list) < 1:
             return False
-        delta = timedelta(minutes=self.__available_time)
+        delta = timedelta(minutes=self._EXPIRE_TIME)
         return time_now < self.create_time + delta
 
     def append(self, proxy_ip):

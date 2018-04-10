@@ -33,7 +33,7 @@ class CommentSpider(object):
     _data_current = 0
     _data_list = []
 
-    _request_thread_limit = 50
+    _request_thread_limit = 20
 
     Lock = threading.Lock()
 
@@ -59,25 +59,11 @@ class CommentSpider(object):
         }
         return text
 
-    def get_data(self, once=True):
+    def get_data(self):
         """
         Get request encrypt data for total comment
         """
-        if once:
-            return generate_data(self.text())
-        else:
-            if self._data_current >= self._DATA_MAX_CACHE:
-                self._data_current = 0
-                self._data_loop += 1
-            if self._data_loop >= self._DATA_MAX_LOOP:
-                self._data_list[:] = []
-                for i in range(self._DATA_MAX_CACHE):
-                    self._data_list.append(generate_data(self.text()))
-                self._data_loop = 0
-                self._data_current = 0
-            data = self._data_list[self._data_current]
-            self._data_current += 1
-            return data
+        return generate_data(self.text())
 
     def get_data_dict(self, total, limit=20):
         """
@@ -91,27 +77,7 @@ class CommentSpider(object):
             data_dict[page - i - 1] = data
         return data_dict
 
-    def get_proxy(self, is_main_thread=True):
-        """
-        Get a proxy ip from collection
-        """
-        if not self.use_proxy:
-            return None
-        first = True
-        self.Lock.acquire()
-        try:
-            while not self.ip_set.available():
-                if not first:
-                    time.sleep(5)
-                self.ip_set = self.controller_proxy.get_proxy(
-                    is_main_thread=is_main_thread)
-                first = False
-            proxy_ip = self.ip_set.pop()
-        finally:
-            self.Lock.release()
-        return proxy_ip
-
-    def request_comment_set(self, song_id, data=None, retry=False, hot_comment=False, is_main_thread=True):
+    def request_comment_set(self, song_id, data=None, retry=False, hot_comment=False):
         """
         Send request and analysis response
         """
@@ -120,10 +86,10 @@ class CommentSpider(object):
         url = str.format(url, song_id)
         content = None
         while content is None:
-            proxy_ip = self.get_proxy(is_main_thread) if self.use_proxy else None
             proxies = None
-            if proxy_ip is not None:
-                proxies = {'http': proxy_ip.ip + ':' + proxy_ip.port}
+            if self.use_proxy:
+                proxy = self.controller_proxy.get_proxy()
+                proxies = {'http': proxy.ip + ':' + proxy.port}
             content = self.spider.send_request('POST', url, data=data, proxies=proxies)
             if not retry:
                 break
@@ -153,16 +119,14 @@ class CommentSpider(object):
         """
         Get a song all comment
         """
-        total_comment = self.request_comment_set(song_id, retry=True)
-        total = total_comment.total
+        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total = total_comment_set.total
         data_dict = self.get_data_dict(total)
         comment_dict = {}
-        param_list = []
-        for index in data_dict:
-            param = ((song_id, data_dict[index],
-                      retry, index, comment_dict,), None)
-            param_list.append(param)
-        param_list = [ for index in data_dict]
+        param_list = [
+            ((song_id, data_dict[index], retry, index, comment_dict,), None)
+            for index in data_dict
+        ]
         pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
         pool = threadpool.ThreadPool(self._request_thread_limit)
@@ -190,13 +154,10 @@ class CommentSpider(object):
         self.logger.info('Comment data length: {0}.', len(data_dict))
         for index in data_dict:
             self.logger.debug("Request comment start. Index: {0}.", index)
-            temp_comment = self.request_comment_set(
+            comment_set = self.request_comment_set(
                 song_id, data=data_dict[index], retry=retry)
             self.logger.debug("Request comment success. Index: {0}.", index)
-            details = Comment.convert_details(temp_comment)
-            self.logger.debug('Send comment start. Index: {0}.', index)
-            for detail in details:
-                writer.send_message(detail)
+            [writer.send_message(comment) for comment in comment_set.comments]
             self.logger.debug("Send comment done. Index: {0}.", index)
         writer.dispose()
 
@@ -228,8 +189,7 @@ class CommentSpider(object):
         This is multi-threading request.
         """
         self.logger.debug("Request comment start. Index: {0}.", index)
-        comment = self.request_comment_set(
-            song_id, data=data, retry=retry, is_main_thread=False)
+        comment = self.request_comment_set(song_id, data=data, retry=retry)
         self.logger.debug("Request comment success. Index: {0}.", index)
         details = Comment.convert_details(comment)
         self.logger.debug('Send comment start. Index: {0}.', index)
