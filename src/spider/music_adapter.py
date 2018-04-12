@@ -178,10 +178,10 @@ def adapt_comment_set(content, object_id):
         comment_set = CommentSet(object_id)
         comment_set.total = content['total']
         comment_set.more = content['more']
-        comment_set.comments = adapt_comments(content['comments'])
+        comment_set.comments = adapt_comments(content['comments'], object_id)
         if 'hotComments' in content:
             comment_set.more_hot = content['moreHot']
-            comment_set.hot_comments = adapt_comments(content['hotComments'])
+            comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
     except KeyError, error:
         print error.message
     return comment_set
@@ -199,25 +199,33 @@ def adapt_hot_comment_set(content, object_id):
         hot_comment_set = HotCommentSet(object_id)
         hot_comment_set.total = content['total']
         hot_comment_set.has_more = content['hasMore']
-        hot_comment_set.hot_comments = adapt_comments(content['hotComments'])
+        hot_comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
     except KeyError, error:
         print error.message
     return hot_comment_set
 
 
-def adapt_comments(contents):
+@convert_str_id
+def adapt_comments(contents, song_id):
     return tuple(
         [
-            adapt_comment(content, content['commentId'])
+            adapt_comment(content, content['commentId'], song_id=song_id)
             for content in contents
         ]
     )
 
 
 @convert_str_id
-def adapt_comment(content, object_id):
+def adapt_comment(content, object_id, song_id=None):
+    """
+    Generate comment from data.
+    :param content: JSON content
+    :param object_id: comment id
+    :param song_id: song id
+    :return: comment instance
+    """
     try:
-        comment = Comment(object_id)
+        comment = Comment(object_id, song_id)
         comment.be_replied = adapt_replied_comment(content['beReplied'])
         comment.content = content['content']
         comment.liked = content['liked']
@@ -231,14 +239,14 @@ def adapt_comment(content, object_id):
 
 def adapt_replied_comment(content):
     """
-    Generate comment from data.
+    Generate replied comment from data.
     :param content: JSON content
     :return: comment instance
     """
     if not content:
         return None
     try:
-        comment = Comment('')
+        comment = Comment(None, None)
         comment.be_replied = None
         comment.content = content[0]['content']
         comment.user = adapt_user(content[0]['user'], brief=True)

@@ -104,9 +104,10 @@ class Comment(object):
     Comment
     """
 
-    def __init__(self, comment_id):
+    def __init__(self, comment_id, song_id):
         self.comment_id = comment_id
-        self.be_replied = ()
+        self.song_id = song_id
+        self.be_replied = None
         self.content = None
         self.liked = False
         self.liked_count = -1
