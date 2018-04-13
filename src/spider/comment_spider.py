@@ -37,13 +37,18 @@ class CommentSpider(object):
 
     Lock = threading.Lock()
 
-    def __init__(self, use_proxy=False):
+    def __init__(self, use_proxy=False, con_string=None):
         self.logger = LoggingController(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
         if use_proxy:
             self.controller_proxy = ProxyController(https=False)
             self.ip_set = ProxyIPSet()
+        if con_string:
+            self.writer = CommentWriter(
+                self.logger,
+                con_string
+            )
 
     def text(self, offset=0, limit=20):
         """
@@ -146,9 +151,8 @@ class CommentSpider(object):
         """
         Write a song all comment
         """
-        writer = CommentWriter(self.logger)
-        total_comment = self.request_comment_set(song_id, retry=True)
-        total = total_comment.total
+        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total = total_comment_set.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
         self.logger.info('Comment data length: {0}.', len(data_dict))
@@ -157,9 +161,9 @@ class CommentSpider(object):
             comment_set = self.request_comment_set(
                 song_id, data=data_dict[index], retry=retry)
             self.logger.debug("Request comment success. Index: {0}.", index)
-            [writer.send_message(comment) for comment in comment_set.comments]
+            self.writer.send_message(comment_set.comments)
             self.logger.debug("Send comment done. Index: {0}.", index)
-        writer.dispose()
+        self.writer.dispose()
 
     def write_comment_multithread(self, song_id, retry=False):
         """

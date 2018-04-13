@@ -23,8 +23,7 @@ DEFAULT CHARACTER SET = utf8mb4;
 
 -- version 2
 CREATE TABLE `comment` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `comment_id` varchar(20) DEFAULT NULL,
+  `comment_id` varchar(20) NOT NULL,
   `song_id` varchar(20) DEFAULT NULL,
   `user_id` varchar(10) DEFAULT NULL,
   `content` varchar(200) DEFAULT NULL,
@@ -33,5 +32,6 @@ CREATE TABLE `comment` (
   `time` bigint(20) DEFAULT NULL,
   `replied_user` varchar(10) DEFAULT NULL,
   `replied_content` varchar(200) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`comment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
