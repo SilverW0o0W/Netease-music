@@ -191,17 +191,16 @@ class ProxyController(object):
         Get a proxy ip from collection
         """
         first_waiting = True
-        self.Lock.acquire()
+        LOCK.acquire()
         try:
             while not self._cache_proxy_set.available():
                 if not first_waiting:
                     time.sleep(3)
-                self._cache_proxy_set = self.controller_proxy.get_proxy_set(
-                    is_main_thread=False)
+                self._cache_proxy_set = self.get_proxy_set(is_main_thread=False)
                 first_waiting = False
             proxy = self._cache_proxy_set.pop()
         finally:
-            self.Lock.release()
+            LOCK.release()
         return proxy
 
     def insert_proxy(self, proxy, is_main_thread=True):
