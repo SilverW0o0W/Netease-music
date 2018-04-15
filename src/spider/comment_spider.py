@@ -11,8 +11,6 @@ import threadpool
 
 import music_adapter as adapter
 from encrypto import generate_data
-from music import Comment
-from proxy_ip import ProxyIPSet
 from logging_controller import LoggingController
 from music_spider import MusicSpider
 from comment_writer import CommentWriter
@@ -41,14 +39,16 @@ class CommentSpider(object):
         self.logger = LoggingController(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
-        if use_proxy:
-            self.controller_proxy = ProxyController(https=False)
-            self.ip_set = ProxyIPSet()
-        if con_string:
-            self.writer = CommentWriter(
-                self.logger,
-                con_string
-            )
+        self.proxy = ProxyController(https=False) if use_proxy else None
+        self.writer = CommentWriter(self.logger, con_string) if con_string else None
+
+    def check_writer(func):
+        def wrapper(self, *args, **kw):
+            if not self.writer:
+                raise NameError('CommentWriter not initialize.')
+            return func(self, *args, **kw)
+
+        return wrapper
 
     def text(self, offset=0, limit=20):
         """
@@ -93,7 +93,7 @@ class CommentSpider(object):
         while content is None:
             proxies = None
             if self.use_proxy:
-                proxy = self.controller_proxy.get_proxy()
+                proxy = self.proxy.get_proxy()
                 proxies = {'http': proxy.ip + ':' + proxy.port}
             content = self.spider.send_request('POST', url, data=data, proxies=proxies)
             if not retry:
@@ -143,10 +143,10 @@ class CommentSpider(object):
         """
         This is multi-threading request.
         """
-        comment = self.request_comment_set(
-            song_id, data=data, retry=retry, is_main_thread=False)
+        comment = self.request_comment_set(song_id, data=data, retry=retry)
         comment_dict[index] = comment
 
+    @check_writer
     def write_comment(self, song_id, retry=False):
         """
         Write a song all comment
@@ -163,13 +163,12 @@ class CommentSpider(object):
             self.logger.debug("Request comment success. Index: {0}.", index)
             self.writer.send_message(comment_set.comments)
             self.logger.debug("Send comment done. Index: {0}.", index)
-        self.writer.dispose()
 
+    @check_writer
     def write_comment_multithread(self, song_id, retry=False):
         """
         Get a song all comment
         """
-        writer = CommentWriter(self.logger)
         total_comment = self.request_comment_set(song_id, retry=True)
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
@@ -177,7 +176,7 @@ class CommentSpider(object):
         self.logger.info('Comment data length: {0}.', len(data_dict))
         param_list = []
         for index in data_dict:
-            param = ((writer, song_id, data_dict[index],
+            param = ((song_id, data_dict[index],
                       retry, index,), None)
             param_list.append(param)
         pool_requests = threadpool.makeRequests(
@@ -185,20 +184,15 @@ class CommentSpider(object):
         pool = threadpool.ThreadPool(self._request_thread_limit)
         [pool.putRequest(request) for request in pool_requests]
         pool.wait()
-        writer.dispose()
-        self.logger.dispose()
 
-    def write_comment_thread(self, writer, song_id, data, retry, index):
+    def write_comment_thread(self, song_id, data, retry, index):
         """
         This is multi-threading request.
         """
         self.logger.debug("Request comment start. Index: {0}.", index)
         comment = self.request_comment_set(song_id, data=data, retry=retry)
-        self.logger.debug("Request comment success. Index: {0}.", index)
-        details = Comment.convert_details(comment)
         self.logger.debug('Send comment start. Index: {0}.', index)
-        for detail in details:
-            writer.send_message(detail)
+        self.writer.send_message(comment.comments)
         self.logger.debug("Send comment done. Index: {0}.", index)
 
     def get_hot_comment(self, song_id, retry=False):
@@ -215,7 +209,9 @@ class CommentSpider(object):
             comment_list.append(temp_comment)
         return comment_list[::-1]
 
-    def close(self):
+    def dispose(self):
         if self.use_proxy:
-            self.controller_proxy.dispose()
+            self.proxy.dispose()
+        if not self.writer:
+            self.writer.dispose()
         self.logger.dispose()

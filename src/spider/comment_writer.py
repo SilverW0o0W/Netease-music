@@ -50,28 +50,58 @@ class CommentWriter(ProcessHandler):
         """
         self.logger.debug('Write start.')
         session = DBSession()
-        try:
-            session.bulk_insert_mappings(
-                alchemy.Comment,
-                [
-                    dict(
-                        comment_id=comment.comment_id,
-                        song_id=comment.song_id,
-                        user_id=comment.user.user_id,
-                        content=comment.content,
-                        liked=comment.liked,
-                        liked_count=comment.liked_count,
-                        time=comment.time,
-                        replied_user=comment.be_replied.user.user_id if comment.be_replied else None,
-                        replied_content=comment.be_replied.content if comment.be_replied else None
-                    )
-                    for comment in comments
-                ]
-            )
-            session.commit()
-        except Exception, ex:
-            self.logger.warning(ex.message)
-            session.rollback()
-        finally:
-            session.close()
+        for comment in comments:
+            try:
+                sql_comment = alchemy.Comment(
+                    comment_id=comment.comment_id,
+                    song_id=comment.song_id,
+                    user_id=comment.user.user_id,
+                    content=comment.content,
+                    liked=comment.liked,
+                    liked_count=comment.liked_count,
+                    time=comment.time,
+                    replied_user=comment.be_replied.user.user_id if comment.be_replied else None,
+                    replied_content=comment.be_replied.content if comment.be_replied else None
+                )
+                session.merge(sql_comment)
+            except Exception, ex:
+                self.logger.warning(ex.message)
+            else:
+                session.commit()
         self.logger.debug('Write complete.')
+        session.close()
+
+# def add_record(self, DBSession, comments):
+#     """
+#     Write comment list to db
+#     :param DBSession: session
+#     :param comments:a list of comments
+#     :return:
+#     """
+#     self.logger.debug('Write start.')
+#     session = DBSession()
+#     try:
+#         session.bulk_insert_mappings(
+#             alchemy.Comment,
+#             [
+#                 dict(
+#                     comment_id=comment.comment_id,
+#                     song_id=comment.song_id,
+#                     user_id=comment.user.user_id,
+#                     content=comment.content,
+#                     liked=comment.liked,
+#                     liked_count=comment.liked_count,
+#                     time=comment.time,
+#                     replied_user=comment.be_replied.user.user_id if comment.be_replied else None,
+#                     replied_content=comment.be_replied.content if comment.be_replied else None
+#                 )
+#                 for comment in comments
+#             ]
+#         )
+#         session.commit()
+#     except Exception, ex:
+#         self.logger.warning(ex.message)
+#         session.rollback()
+#     finally:
+#         session.close()
+#     self.logger.debug('Write complete.')
