@@ -4,65 +4,104 @@ For write comment detail to DB
 """
 
 from multiprocessing import Process
-from mysql_connection_pool import ConnectionPool
 from process_handler import ProcessHandler
+import music_alchemy as alchemy
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 
 class CommentWriter(ProcessHandler):
     """
     For writing comment to DB
     """
-    _sql_insert = 'insert into comment(song_id, user_id, comment_id, replied_user_id, replied_content, content, comment_time, liked_count) values(%s, %s, %s, %s, %s, %s, %s, %s)'
 
-    def __init__(self, logger, flush_count=10):
+    def __init__(self, logger, con_string):
         ProcessHandler.__init__(self)
-        self.flush_count = flush_count
         self.logger = logger
-        writer_process = Process(target=self.writing_process, args=(self.pipe[0],))
+        self.con_string = con_string
+        writer_process = Process(target=self.process, args=(self.pipe[0],))
         writer_process.start()
         self.logger.info("Comment writer start. PID: {0}.", writer_process.pid)
 
-    def writing_process(self, pipe):
+    def process(self, pipe):
         self.logger.info('Writing process start')
         try:
-            pool = ConnectionPool(user='', password='', database='', charset='utf8mb4s')
-            buffer_comments = []
-            buffer_count = 0
+            engine = create_engine(self.con_string)
+            alchemy.Base.metadata.create_all(engine)
+            DBSession = sessionmaker(bind=engine)
             while True:
                 message = pipe.recv()
-                if not message:
-                    if buffer_count != 0:
-                        self.add_record(pool, buffer_comments)
-                    pool.close()
+                if self.receive_stop(message):
+                    engine.dispose()
                     break
-                buffer_count += 1
-                buffer_comments.append(message)
-                if buffer_count >= self.flush_count:
-                    self.add_record(pool, buffer_comments)
-                    buffer_count = 0
+                self.add_record(DBSession, message)
         except BaseException, ex:
             self.logger.error("Writing process error. Reason: {0}.", ex.message)
 
-    def add_record(self, pool, comments):
+    def add_record(self, DBSession, comments):
         """
-        Write comment data to db
-        :param pool:ConnectPool
+        Write comment list to db
+        :param DBSession: session
         :param comments:a list of comments
         :return:
         """
-        try:
-            self.logger.debug('Write start.')
-            conn = pool.get_connection()
-            params_list = []
-            for comment in comments:
-                params = [comment.song_id, comment.user_id, comment.comment_id,
-                          comment.replied_user_id, comment.replied_content,
-                          comment.content, comment.time, comment.liked_count]
-                params_list.append(params)
-            conn.write_list(self._sql_insert, params_list)
-            del comments[:]
-            self.logger.debug('Write complete.')
-        except Exception, ex:
-            self.logger.warning(ex.message)
-        finally:
-            conn.close()
+        self.logger.debug('Write start.')
+        session = DBSession()
+        for comment in comments:
+            try:
+                sql_comment = alchemy.Comment(
+                    comment_id=comment.comment_id,
+                    song_id=comment.song_id,
+                    user_id=comment.user.user_id,
+                    content=comment.content,
+                    liked=comment.liked,
+                    liked_count=comment.liked_count,
+                    time=comment.time,
+                    replied_user=comment.be_replied.user.user_id if comment.be_replied else None,
+                    replied_content=comment.be_replied.content if comment.be_replied else None
+                )
+                session.merge(sql_comment)
+            except Exception, ex:
+                self.logger.warning(ex.message)
+            else:
+                session.commit()
+        self.logger.debug('Write complete.')
+        session.close()
+
+# def add_record(self, DBSession, comments):
+#     """
+#     Write comment list to db
+#     :param DBSession: session
+#     :param comments:a list of comments
+#     :return:
+#     """
+#     self.logger.debug('Write start.')
+#     session = DBSession()
+#     try:
+#         session.bulk_insert_mappings(
+#             alchemy.Comment,
+#             [
+#                 dict(
+#                     comment_id=comment.comment_id,
+#                     song_id=comment.song_id,
+#                     user_id=comment.user.user_id,
+#                     content=comment.content,
+#                     liked=comment.liked,
+#                     liked_count=comment.liked_count,
+#                     time=comment.time,
+#                     replied_user=comment.be_replied.user.user_id if comment.be_replied else None,
+#                     replied_content=comment.be_replied.content if comment.be_replied else None
+#                 )
+#                 for comment in comments
+#             ]
+#         )
+#         session.commit()
+#     except Exception, ex:
+#         self.logger.warning(ex.message)
+#         session.rollback()
+#     finally:
+#         session.close()
+#     self.logger.debug('Write complete.')

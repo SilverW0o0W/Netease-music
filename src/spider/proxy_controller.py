@@ -31,7 +31,7 @@ class ProxyController(object):
 
     _http_url = 'http://info.cern.ch/'
     _http_title = 'http://info.cern.ch'
-    _https_url = 'https://github.com/'
+    _https_url = ''
     _https_title = ''
     _thread_list_split = 3
 
@@ -60,6 +60,8 @@ class ProxyController(object):
 
     _min_storage = 20
     _min_available = 10
+
+    _cache_proxy_set = ProxyIPSet()
 
     def __init__(self, https):
         self.logger = LoggingController(name='proxy.log')
@@ -122,6 +124,7 @@ class ProxyController(object):
         """
         Check response content
         :param response:
+        :param url:
         :return: is valid proxy
         """
         # Check 1st: response status == 200 and url is right
@@ -174,7 +177,7 @@ class ProxyController(object):
             self.logger.debug('Write proxies to db. Count: {0}', len(insert_list))
         self.insert_proxies(insert_list, False)
 
-    def get_proxy(self, count=10, is_main_thread=True):
+    def get_proxy_set(self, count=10, is_main_thread=True):
         """
         Get proxy list from sqlite and check available
         """
@@ -182,6 +185,23 @@ class ProxyController(object):
         proxies = self.convert_proxies(ip_value_list)
         random.shuffle(proxies)
         return ProxyIPSet(proxies)
+
+    def get_proxy(self):
+        """
+        Get a proxy ip from collection
+        """
+        first_waiting = True
+        LOCK.acquire()
+        try:
+            while not self._cache_proxy_set.available():
+                if not first_waiting:
+                    time.sleep(3)
+                self._cache_proxy_set = self.get_proxy_set(is_main_thread=False)
+                first_waiting = False
+            proxy = self._cache_proxy_set.pop()
+        finally:
+            LOCK.release()
+        return proxy
 
     def insert_proxy(self, proxy, is_main_thread=True):
         """
@@ -224,11 +244,13 @@ class ProxyController(object):
         """
         Convert data from db to proxy_ip instance
         """
-        proxies = []
-        for proxy_value in proxy_value_list:
-            proxy = ProxyIP(proxy_value[1], proxy_value[2],
-                            proxy_value[3] == 1, proxy_value[4] == 1, proxy_value[5], proxy_value[6], proxy_value[0])
-            proxies.append(proxy)
+        proxies = [
+            ProxyIP(
+                value[1], value[2], value[3] == 1, value[4] == 1, value[5],
+                value[6], value[0]
+            )
+            for value in proxy_value_list
+        ]
         return proxies
 
     def select_proxies(self, count=None, is_main_thread=True):

@@ -3,143 +3,256 @@
 This is an adapter class to convert request content to music instance.
 """
 from music import *
+import functools
 
 
-def adapt_info(song_id, content):
+def convert_str_id(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        object_id = str(args[1])
+        return func(args[0], object_id, **kw)
+
+    return wrapper
+
+
+@convert_str_id
+def adapt_song(content, object_id):
     """
     Generate info from data.
     """
-    info = SongInfo(song_id=song_id)
+    # For request song
+    content = content['songs'][0] if 'songs' in content else content
+
     try:
-        song = content['songs'][0]
+        song = Song(object_id)
         # Get song name
-        info.song_name = song['name']
+        song.name = content['name']
         # Get artists
-        get_artists(song['artists'], info)
+        song.artists = _get_artists(content['artists'])
         # Get album
-        album = song['album']
-        info.album_id = album['id']
-        info.album_name = album['name']
+        song.album = adapt_album(content, content['album']['id'], has_songs=False)
     except KeyError, ex:
         print ex.message
-    return info
+    return song
 
 
-def get_artists(artists, info):
+def _get_artists(contents):
     """
     Get artists info.
     """
-    artists_tuple = ([], [])
-    for artist in artists:
-        artist_id = artist['id']
-        artist_name = artist['name']
-        artists_tuple[0].append(artist_id)
-        artists_tuple[1].append(artist_name)
-    info.artists = artists_tuple
+    artists_list = [
+        adapt_artist({'artist': content}, content['id'], all_size=False, hot_songs=False)
+        for content in contents
+    ]
+    return tuple(artists_list)
 
 
-def adapt_lyric(song_id, content, song_info):
+@convert_str_id
+def adapt_lyric(content, object_id, song=None):
     """
     Generate lyric from data.
     """
     try:
-        song_lyric = SongLyric(song_id, info=song_info)
+        lyric = Lyric(object_id)
+        lyric.song = song
         # uncollected and nolyric
-        song_lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
-        song_lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
+        lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
+        lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
     except KeyError, error:
         print error.message
-    return song_lyric
+    return lyric
 
 
-def adapt_playlist(playlist_id, content):
+@convert_str_id
+def adapt_playlist(content, object_id):
     """
     Generate playlist from data.
     """
     try:
-        playlist = Playlist(playlist_id)
+        playlist = Playlist(object_id)
         playlist.name = content['playlist']['name']
-        playlist.creator = get_creator(content['playlist']['creator'])
+        playlist.creator = adapt_user(content['playlist']['creator'])
         playlist.track_count = content['playlist']['trackCount']
-        playlist.tracks = get_tracks(content['playlist']['tracks'])
+        playlist.tracks = _get_tracks(content['playlist']['tracks'])
     except KeyError, error:
         print error.message
     return playlist
 
 
-def get_creator(content):
+def adapt_user(content, brief=False):
     """
     Get playlist creator
     """
     try:
-        creator = User()
-        creator.user_id = content['userId']
-        creator.nickname = content['nickname']
-        creator.gender = int(content['gender'])
-        creator.signature = content['signature']
-        creator.avatar_url = content['avatarUrl']
+        user = User(str(content['userId']))
+        user.nickname = content['nickname']
+        user.avatar_url = content['avatarUrl']
+        if not brief:
+            user.gender = content['gender']
+            user.signature = content['signature']
     except KeyError, error:
         print error.message
-        creator = None
-    return creator
+    return user
 
 
-def get_tracks(contents):
+def _get_tracks(contents):
     """
     Get tracks
     """
     tracks = []
     for content in contents:
         try:
-            song = SongBase(content['id'])
-            song.info = SongInfo(song_id=song.song_id)
-            get_track_info(content, song.info)
+            song = Song(content['id'])
+            # Get song name
+            song.name = content['name']
+            # Get artists
+            song.artists = _get_artists(content['ar'])
+            # Get album
+            album = Album(content['al']['id'])
+            album.name = content['al']['name']
+            song.album = album
             tracks.append(song)
         except KeyError, error:
             print error.message
-    return tracks
+    return tuple(tracks)
 
 
-def get_track_info(content, info):
+@convert_str_id
+def adapt_artist(content, object_id, all_size=True, hot_songs=True):
     """
-    Get track info
+    Generate artist from data.
+    :param content: JSON content
+    :param object_id: artist id
+    :param all_size: get work size
+    :param hot_songs: get hot songs
+    :return: Artist instance
     """
     try:
-        info.song_name = content['name']
-        get_artists(content['ar'], info)
-        album = content['al']
-        info.album_id = album['id']
-        info.album_name = album['name']
+        artist = Artist(object_id)
+        artist.name = content['artist']['name']
+        artist.brief_desc = content['artist']['briefDesc']
+        if all_size:
+            artist.music_size = content['artist']['musicSize']
+            artist.album_size = content['artist']['albumSize']
+            artist.mv_size = content['artist']['mvSize']
+        artist.hot_songs = ()
+        if hot_songs:
+            artist.hot_songs = tuple(
+                [
+                    adapt_song(content, content['id'])
+                    for content in content['hotSongs']
+                ]
+            )
     except KeyError, error:
         print error.message
+    return artist
 
 
-def get_comment(content, song_id):
+@convert_str_id
+def adapt_album(content, object_id, has_songs=True):
     """
-    Generate comment from data.
+    Generate album from data.
+    :param content: JSON content
+    :param object_id: album id
+    :param has_songs: content has 'songs' attribute
+    :return: album instance
     """
     try:
-        comment = SongComment(song_id)
-        comment.total = content['total']
-        comment.comments = content['comments']
-        comment.comment_more = content['more']
+        album = Album(object_id)
+        album.name = content['album']['name']
+        album.size = content['album']['size']
+        album.artists = _get_artists(content['album']['artists'])
+        # Not implement real songs
+        album.songs = () if has_songs else ()
+    except KeyError, error:
+        print error.message
+    return album
+
+
+@convert_str_id
+def adapt_comment_set(content, object_id):
+    """
+    Generate comment set from data.
+    :param content: JSON content
+    :param object_id: song id
+    :return: comment set instance
+    """
+    try:
+        comment_set = CommentSet(object_id)
+        comment_set.total = content['total']
+        comment_set.more = content['more']
+        comment_set.comments = adapt_comments(content['comments'], object_id)
         if 'hotComments' in content:
-            comment.hot_comments = content['hotComments']
-            comment.hot_comment_more = content['moreHot']
+            comment_set.more_hot = content['moreHot']
+            comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
+    except KeyError, error:
+        print error.message
+    return comment_set
+
+
+@convert_str_id
+def adapt_hot_comment_set(content, object_id):
+    """
+    Generate hot comment set from data.
+    :param content: JSON content
+    :param object_id: song id
+    :return: hot comment set instance
+    """
+    try:
+        hot_comment_set = HotCommentSet(object_id)
+        hot_comment_set.total = content['total']
+        hot_comment_set.has_more = content['hasMore']
+        hot_comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
+    except KeyError, error:
+        print error.message
+    return hot_comment_set
+
+
+@convert_str_id
+def adapt_comments(contents, song_id):
+    return tuple(
+        [
+            adapt_comment(content, content['commentId'], song_id=song_id)
+            for content in contents
+        ]
+    )
+
+
+@convert_str_id
+def adapt_comment(content, object_id, song_id=None):
+    """
+    Generate comment from data.
+    :param content: JSON content
+    :param object_id: comment id
+    :param song_id: song id
+    :return: comment instance
+    """
+    try:
+        comment = Comment(object_id, song_id)
+        comment.be_replied = adapt_replied_comment(content['beReplied'])
+        comment.content = content['content']
+        comment.liked = content['liked']
+        comment.liked_count = content['likedCount']
+        comment.time = content['time']
+        comment.user = adapt_user(content['user'], brief=True)
     except KeyError, error:
         print error.message
     return comment
 
 
-def get_hot_comment(content, song_id):
+def adapt_replied_comment(content):
     """
-    Generate hot comment from data.
+    Generate replied comment from data.
+    :param content: JSON content
+    :return: comment instance
     """
+    if not content:
+        return None
     try:
-        hot_comment = SongHotComment()
-        hot_comment.total = content['total']
-        hot_comment.hot_comments = content['hotComments']
-        hot_comment.hot_comment_more = content['hasMore']
+        comment = Comment(None, None)
+        comment.be_replied = None
+        comment.content = content[0]['content']
+        comment.user = adapt_user(content[0]['user'], brief=True)
     except KeyError, error:
         print error.message
-    return hot_comment
+    return comment
