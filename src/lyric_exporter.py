@@ -33,22 +33,17 @@ class LyricExporter(object):
         self.need_info = need_info
         self.spider = MusicSpider()
 
-    def get_export_path(self, song_info, export_path):
+    def get_export_path(self, song, export_path):
         """
         Concat lyric file name and export dir path.
         """
-        if not song_info:
-            file_name = str.format(self.extension_name, song_info.song_id)
+        if not song:
+            file_name = str.format(self.extension_name, song.song_id)
         else:
-            is_first = True
-            for artist in song_info.artists[1]:
-                if is_first:
-                    artists_name = artist
-                    is_first = False
-                else:
-                    artists_name += ',' + artist
+            name_list = [artist.name for artist in song.artists]
+            artists_name = ','.join(name_list)
             concat_name = str.format(
-                self.name_format, artists_name, song_info.song_name)
+                self.name_format, artists_name, song.name)
             file_name = str.format(self.extension_name, concat_name)
         if export_path is not None and export_path.strip() != '':
             export_path = export_path.strip()
@@ -64,20 +59,20 @@ class LyricExporter(object):
                     print e.message
         return file_name, full_name
 
-    def create_file(self, song_lyric, export_path=None):
+    def create_file(self, lyric, export_path=None):
         """
         Write lyric to file.
         If song info doesn't exist, file name: song_id.lrc
         If song info exists, default file name: artists_name[,] - song_name.lrc
         """
-        file_name = self.get_export_path(song_lyric.info, export_path)
-        lyric = song_lyric.lyric
-        if not lyric:
+        file_name = self.get_export_path(lyric.song, export_path)
+        lyric_txt = lyric.lyric
+        if not lyric_txt:
             return
         with open(unicode(file_name[1], 'utf-8'), 'w') as lrc_file:
             if platform.system() == 'Windows':
-                lyric = lyric.encode('mbcs')
-            lrc_file.write(lyric)
+                lyric_txt = lyric_txt.encode('mbcs')
+            lrc_file.write(lyric_txt)
             return file_name
 
     def export(self, song_id, song_info=None, export_dir=None):
@@ -90,8 +85,8 @@ class LyricExporter(object):
                 song_content = self.spider.request_song(song_id)
                 song = adapter.adapt_song(song_content, song_id)
         lyric_content = self.spider.request_lyric(song_id)
-        song_lyric = adapter.adapt_lyric(lyric_content, song_id, song=song)
-        return self.create_file(song_lyric, export_dir)
+        lyric = adapter.adapt_lyric(lyric_content, song_id, song=song)
+        return self.create_file(lyric, export_dir)
 
     def export_songs(self, song_list, export_dir=None):
         """

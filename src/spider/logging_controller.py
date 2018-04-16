@@ -45,7 +45,7 @@ class LoggingController(ProcessHandler):
         logger = logging.getLogger(name) if name else logging.getLogger()
         while True:
             message = pipe.recv()
-            if not message:
+            if self.receive_stop(message):
                 break
             logger.log(message[0], message[1])
 

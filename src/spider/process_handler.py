@@ -9,6 +9,15 @@ from multiprocessing import Pipe
 LOCK = threading.Lock()
 
 
+class StopSignal(object):
+    """
+    Stop the message receive process
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 class ProcessHandler(object):
     """
     For controling process start and close.
@@ -20,15 +29,20 @@ class ProcessHandler(object):
         self.pipe = Pipe(duplex=False)
         self.is_run = True
 
-    # need process set stop file
+    def receive_stop(self, message):
+        """
+        Check message is stop signal
+        :return: message
+        """
+        return isinstance(message, StopSignal)
 
-    def dispose(self):
+    def dispose(self, message=None):
         """
         Send close message to log process.
         """
         LOCK.acquire()
         if self.is_run:
-            self.pipe[1].send(None)
+            self.pipe[1].send(StopSignal(message))
         self.is_run = False
         LOCK.release()
 

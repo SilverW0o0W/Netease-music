@@ -34,7 +34,7 @@ class CommentWriter(ProcessHandler):
             DBSession = sessionmaker(bind=engine)
             while True:
                 message = pipe.recv()
-                if not message:
+                if self.receive_stop(message):
                     engine.dispose()
                     break
                 self.add_record(DBSession, message)

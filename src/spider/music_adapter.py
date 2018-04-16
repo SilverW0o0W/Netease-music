@@ -20,6 +20,9 @@ def adapt_song(content, object_id):
     """
     Generate info from data.
     """
+    # For request song
+    content = content['songs'][0] if 'songs' in content else content
+
     try:
         song = Song(object_id)
         # Get song name
