@@ -27,10 +27,9 @@ class LyricExporter(object):
     extension_name = '{0}.lrc'
     name_format = '{0} - {1}'
 
-    def __init__(self, export_dir=None, name_format=name_format, need_info=True):
+    def __init__(self, export_dir=None, name_format=name_format):
         self.export_dir = export_dir
         self.name_format = name_format
-        self.need_info = need_info
         self.spider = MusicSpider()
 
     def get_export_path(self, song, export_path):
@@ -75,32 +74,30 @@ class LyricExporter(object):
             lrc_file.write(lyric_txt)
             return file_name
 
-    def export(self, song_id, song_info=None, export_dir=None):
+    def export(self, song_id, song=None, export_dir=None):
         """
         Export song lyric.
         """
         export_dir = self.export_dir if not export_dir else export_dir
-        if not song_info:
-            if self.need_info:
-                song_content = self.spider.request_song(song_id)
-                song = adapter.adapt_song(song_content, song_id)
+        if not song:
+            song_content = self.spider.request_song(song_id)
+            song = adapter.adapt_song(song_content, song_id)
         lyric_content = self.spider.request_lyric(song_id)
         lyric = adapter.adapt_lyric(lyric_content, song_id, song=song)
         return self.create_file(lyric, export_dir)
 
-    def export_songs(self, song_list, export_dir=None):
+    def export_songs(self, songs, export_dir=None):
         """
         Export songs of list
-        :param song_list:List of Song object
+        :param songs:List of Song object
         :param export_dir:Directory of export path
         :return:Dict of file_name:full_path
         """
         path_dict = {}
-        for song in song_list:
+        for song in songs:
             try:
-                file_name = self.export(song.song_id, song_info=song.info,
-                                        export_dir=export_dir)
-                if file_name is not None:
+                file_name = self.export(song.song_id, song=song, export_dir=export_dir)
+                if file_name:
                     path_dict[song.song_id] = file_name
             except BaseException, ex:
                 print ex.message
