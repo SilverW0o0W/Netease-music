@@ -22,14 +22,21 @@ class LyricExporter(object):
         {0} is artist name.
         {1} is song name.
         default: '{0} - {1}'.
+    lang: lyric language
+        0b01: source language
+            Base language
+        0b10: translate language
+            If the translate lyric not exist, use source language
+        0b11: source + translate language
     """
 
     extension_name = '{0}.lrc'
     name_format = '{0} - {1}'
 
-    def __init__(self, export_dir=None, name_format=name_format):
+    def __init__(self, export_dir=None, name_format=name_format, lang=1):
         self.export_dir = export_dir
         self.name_format = name_format
+        self.lang = lang
         self.spider = MusicSpider()
 
     def get_export_path(self, song, export_path):
@@ -65,14 +72,26 @@ class LyricExporter(object):
         If song info exists, default file name: artists_name[,] - song_name.lrc
         """
         file_name = self.get_export_path(lyric.song, export_path)
-        lyric_txt = lyric.lyric
+        lyric_txt = self.get_lyric_txt(lyric)
         if not lyric_txt:
             return
         with open(unicode(file_name[1], 'utf-8'), 'w') as lrc_file:
-            if platform.system() == 'Windows':
-                lyric_txt = lyric_txt.encode('mbcs')
+            # if platform.system() == 'Windows':
+            #     lyric_txt = lyric_txt.encode('mbcs')
             lrc_file.write(lyric_txt)
             return file_name
+
+    def get_lyric_txt(self, lyric):
+        lyric_text = None
+        if self.lang == 0b01:
+            lyric_text = lyric.lyric
+        elif self.lang == 0b10:
+            lyric_text = lyric.tlyric if lyric.tlyric else lyric.lyric
+        elif self.lang == 0b11:
+            lyric_text = lyric.lyric
+            if lyric.tlyric:
+                lyric_text = lyric_text + lyric.tlyric
+        return lyric_text.encode('utf8')
 
     def export(self, song_id, song=None, export_dir=None):
         """
