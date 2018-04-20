@@ -86,11 +86,22 @@ class MusicSpider(object):
         content = self.send_request(method='POST', url=url, data=data)
         return content
 
-    # url = 'http://music.163.com/api/artist/12345'
+    # url = 'http://music.163.com/api/artist/{}'
     def request_artist(self, artist_id):
         """
         Crawl song information.
         """
         url = 'http://music.163.com/api/artist/{}'.format(artist_id)
+        content = self.send_request(method='GET', url=url)
+        return content
+
+    # url = 'http://music.163.com/api/album/{}'
+    def request_album(self, album_id):
+        """
+        Crawl album information.
+        :param album_id:
+        :return: JSON content
+        """
+        url = 'http://music.163.com/api/album/{}'.format(album_id)
         content = self.send_request(method='GET', url=url)
         return content

@@ -30,7 +30,7 @@ def adapt_song(content, object_id):
         # Get artists
         song.artists = _get_artists(content['artists'])
         # Get album
-        song.album = adapt_album(content, content['album']['id'], has_songs=False)
+        song.album = adapt_album(content, content['album']['id'])
     except KeyError, ex:
         print ex.message
     return song
@@ -149,12 +149,11 @@ def adapt_artist(content, object_id, all_size=True, hot_songs=True):
 
 
 @convert_str_id
-def adapt_album(content, object_id, has_songs=True):
+def adapt_album(content, object_id):
     """
     Generate album from data.
     :param content: JSON content
     :param object_id: album id
-    :param has_songs: content has 'songs' attribute
     :return: album instance
     """
     try:
@@ -162,8 +161,14 @@ def adapt_album(content, object_id, has_songs=True):
         album.name = content['album']['name']
         album.size = content['album']['size']
         album.artists = _get_artists(content['album']['artists'])
-        # Not implement real songs
-        album.songs = () if has_songs else ()
+        album.songs = ()
+        if 'songs' in content['album'] and len(content['album']['songs']) > 0:
+            album.songs = tuple(
+                [
+                    adapt_song(song, song['id'])
+                    for song in content['album']['songs']
+                ]
+            )
     except KeyError, error:
         print error.message
     return album
