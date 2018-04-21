@@ -4,7 +4,6 @@ Download lyric
 """
 import os
 import sys
-import platform
 from spider import music_utils as utils
 from spider import music_adapter as adapter
 from spider.music_spider import MusicSpider
