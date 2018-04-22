@@ -90,7 +90,7 @@ class LyricExporter(object):
             lyric_text = lyric.lyric
             if lyric.tlyric:
                 lyric_text = lyric_text + lyric.tlyric
-        return lyric_text.encode('utf8')
+        return lyric_text.encode('utf8') if lyric_text else None
 
     def export(self, song_id, song=None, export_dir=None):
         """
