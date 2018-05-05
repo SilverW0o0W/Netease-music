@@ -6,9 +6,6 @@ import encrypto
 import requests
 
 
-# from bs4 import BeautifulSoup
-
-
 class MusicSpider(object):
     """
     Base spider

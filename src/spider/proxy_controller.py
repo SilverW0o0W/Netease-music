@@ -425,5 +425,5 @@ class ProxyController(object):
             elif message == 1:
                 self.logger.debug("Receive verify process stop.")
         self.clear_stop_file()
-        self.db_controller.dispose_db_connection()
+        self.db_controller.close()
         self.logger.dispose()
