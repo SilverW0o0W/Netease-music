@@ -6,28 +6,37 @@ This is the file for proxy ip class
 from datetime import datetime, timedelta
 
 
-class ProxyIP(object):
+class Proxy(object):
     """
     This is the class for ip information.
     """
 
-    def __init__(self, ip, port, https, available=False, verify_time=None, create_time=None, db_id=None):
-        self.db_id = db_id
+    def __init__(self, ip, port, https, available=False, verified=None, created=None, id=None):
+        self.id = id
         self.ip = ip
         self.port = port
         self.https = https
+        self.unique_id = self.unique_id()
         self.available = available
-        self.verify_time = verify_time if verify_time is not None else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.create_time = create_time if create_time is not None else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.verified = verified if verified else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.created = created if created else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    def get_ip_port(self):
+    def ip_port(self):
         """
         Get ip:port string.
         """
         return self.ip + ':' + self.port
 
+    def unique_id(self):
+        unique_id = ''
+        nums = self.ip.split('.')
+        for num in nums:
+            unique_id += num.zfill(3)
+        unique_id += self.port + 1 if self.https else 0
+        return unique_id
 
-class ProxyIPSet(object):
+
+class ProxySet(object):
     """
     This is the set class for proxy ip
     """

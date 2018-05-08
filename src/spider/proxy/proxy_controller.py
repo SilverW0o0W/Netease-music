@@ -11,13 +11,14 @@ from datetime import datetime, timedelta
 import threading
 from multiprocessing import Process, Pipe
 import requests
-from logging_controller import LoggingController
+from spider.logging_controller import LoggingController
 
 import threadpool
 
-from sqlite_controller import SqliteController
-from proxy_ip import ProxyIP, ProxyIPSet
+from spider.sqlite_controller import SqliteController
+from proxy import Proxy, ProxySet
 from proxy_spider import ProxySpider
+from proxy_alchemy import ProxyWorker
 from bs4 import BeautifulSoup
 
 LOCK = threading.Lock()
@@ -41,7 +42,7 @@ class ProxyController(object):
     _crawl_pool_max = 20
 
     _verify_check_seconds = 300
-    _verify_proxy_minutes = 5
+    _verify_minutes = 5
     _verify_pool_max = 30
 
     _proxy_spider_page = 2
@@ -61,15 +62,15 @@ class ProxyController(object):
     _min_storage = 20
     _min_available = 10
 
-    _cache_proxy_set = ProxyIPSet()
+    _cache_proxy_set = ProxySet()
 
     def __init__(self, https):
         self.logger = LoggingController(name='proxy.log')
         self.https = https
-        self.db_https = 1 if https else 0
         self.proxy_spider = ProxySpider(self.logger)
-        self.db_controller = SqliteController(self._sql_create_table, self._db_path)
-        self.db_controller.init_db()
+        self.worker = ProxyWorker('')
+        # self.db_controller = SqliteController(self._sql_create_table, self._db_path)
+        # self.db_controller.init_db()
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
 
@@ -91,8 +92,7 @@ class ProxyController(object):
                 LOCK.acquire()
                 # double check
                 if not cls._instance:
-                    cls._instance = super(ProxyController, cls).__new__(
-                        cls, *args, **kwargs)
+                    cls._instance = super(ProxyController, cls).__new__(cls, *args, **kwargs)
             finally:
                 LOCK.release()
         return cls._instance
@@ -102,7 +102,7 @@ class ProxyController(object):
         Check proxy available. Timeout: 15s. Retry: 3 times.
         """
         transfer_method = 'https' if proxy.https else 'http'
-        ip_port = proxy.ip + ':' + proxy.port
+        ip_port = proxy.ip_port()
         proxies = {transfer_method: ip_port}
         url = self._https_url if proxy.https else self._http_url
         requests.adapters.DEFAULT_RETRIES = 3
@@ -144,7 +144,7 @@ class ProxyController(object):
             if self.is_recorded(proxy):
                 return False
             else:
-                self.insert_proxy(proxy)
+                self.worker.merge([proxy, ])
                 return True
 
     def add_proxies(self, proxies):
@@ -168,23 +168,23 @@ class ProxyController(object):
         """
         Multi-Threading check proxy.
         """
-        insert_list = []
+        added_proxies = []
         for proxy in proxies:
             if self.check_proxy(proxy):
                 if not self.is_recorded(proxy):
-                    insert_list.append(proxy)
-        if len(insert_list) > 0:
-            self.logger.debug('Write proxies to db. Count: {0}', len(insert_list))
-        self.insert_proxies(insert_list, False)
+                    added_proxies.append(proxy)
+        if len(added_proxies) > 0:
+            self.logger.debug('Write proxies to db. Count: {0}', len(added_proxies))
+            self.worker.merge(added_proxies)
 
-    def get_proxy_set(self, count=10, is_main_thread=True):
+    def get_proxy_set(self, count=10):
         """
         Get proxy list from sqlite and check available
         """
-        ip_value_list = self.select_proxies(count, is_main_thread)
-        proxies = self.convert_proxies(ip_value_list)
+        proxies = self.select_proxies(count)
+        proxies = self.convert_proxies(proxies)
         random.shuffle(proxies)
-        return ProxyIPSet(proxies)
+        return ProxySet(proxies)
 
     def get_proxy(self):
         """
@@ -196,56 +196,19 @@ class ProxyController(object):
             while not self._cache_proxy_set.available():
                 if not first_waiting:
                     time.sleep(3)
-                self._cache_proxy_set = self.get_proxy_set(is_main_thread=False)
+                self._cache_proxy_set = self.get_proxy_set()
                 first_waiting = False
             proxy = self._cache_proxy_set.pop()
         finally:
             LOCK.release()
         return proxy
 
-    def insert_proxy(self, proxy, is_main_thread=True):
-        """
-        Insert proxy ip info to sqlite db file.
-        """
-        sql = self._sql_insert
-        params_list = (proxy.ip, proxy.port,
-                       1 if proxy.https else 0, 1 if proxy.available else 0)
-        return self.db_controller.write(sql, params_list, is_main_thread)
-
-    def insert_proxies(self, proxies, is_main_thread=True):
-        """
-        Insert proxy ip info to sqlite db file.
-        """
-        ip_params_list = []
-        sql = self._sql_insert
-        for proxy in proxies:
-            ip_params = (proxy.ip, proxy.port,
-                         1 if proxy.https else 0, 1 if proxy.available else 0)
-            ip_params_list.append(ip_params)
-        return self.db_controller.write_list(sql, ip_params_list, is_main_thread)
-
-    def delete_proxy(self, proxy, is_main_thread=True):
-        """
-        Delete proxy ip info from sqlite db file.
-        """
-        return self.db_controller.write(self._sql_delete,
-                                        (proxy.db_id,), is_main_thread)
-
-    def update_proxy(self, proxy, is_main_thread=True):
-        """
-        Update proxy ip info in sqlite db file.
-        """
-        sql = self._sql_update
-        params_list = (proxy.ip, proxy.port, 1 if proxy.https else 0,
-                       1 if proxy.available else 0, proxy.verify_time, proxy.db_id)
-        return self.db_controller.write(sql, params_list, is_main_thread)
-
     def convert_proxies(self, proxy_value_list):
         """
         Convert data from db to proxy_ip instance
         """
         proxies = [
-            ProxyIP(
+            Proxy(
                 value[1], value[2], value[3] == 1, value[4] == 1, value[5],
                 value[6], value[0]
             )
@@ -253,34 +216,22 @@ class ProxyController(object):
         ]
         return proxies
 
-    def select_proxies(self, count=None, is_main_thread=True):
+    def select_proxies(self, count=None):
         """
         Select proxy ip in sqlite
         """
-        delta = timedelta(minutes=self._verify_proxy_minutes)
-        available_time = datetime.now() - delta
-        str_available_time = available_time.strftime('%Y-%m-%d %H:%M:%S')
-        if count is None:
-            sql = self._sql_select_available_all
-            params_list = (str_available_time, self.db_https,)
-        else:
-            sql = self._sql_select_available_limit
-            params_list = (str_available_time, self.db_https, count, 0,)
-        proxies_set = self.db_controller.read(sql, params_list, is_main_thread)
+        delta = timedelta(minutes=self._verify_minutes)
+        avail_time = datetime.now() - delta
+        proxies_set = self.worker.query_available(avail_time, self.https, count)
         if not proxies_set:
             proxies_set = []
         return proxies_set
 
-    def get_db_count(self, is_main_thread=True):
+    def get_db_count(self):
         """
         Get total record in db.
         """
-        params_list = (self.db_https,)
-        result_set = self.db_controller.read(self._sql_select_available_count, params_list, is_main_thread)
-        if result_set is not None and len(result_set) > 0 and len(result_set[0]) > 0:
-            return result_set[0][0]
-        else:
-            return -1
+        return self.worker.available_count(self.https)
 
     def check_storage_process(self):
         """
@@ -288,8 +239,7 @@ class ProxyController(object):
         """
         self.crawl_pool = threadpool.ThreadPool(self._crawl_pool_max)
         while self.should_run():
-
-            count = self.get_db_count(False)
+            count = self.get_db_count()
             if count < self._min_storage:
                 self.crawl_proxy()
             else:
@@ -302,10 +252,7 @@ class ProxyController(object):
         """
         Check proxy existed in sqlite
         """
-        params_list = (proxy.ip, proxy.port,)
-        result_set = self.db_controller.read(
-            self._sql_select_exist, params_list, False)
-        return result_set is not None and len(result_set) > 0
+        return self.worker.query(proxy.id) is not None
 
     def crawl_proxy(self):
         """
@@ -325,11 +272,9 @@ class ProxyController(object):
         """
         Select proxy ip in sqlite
         """
-        delta = timedelta(minutes=self._verify_proxy_minutes)
+        delta = timedelta(minutes=self._verify_minutes)
         verify_time = datetime.now() - delta
-        str_verify_time = verify_time.strftime('%Y-%m-%d %H:%M:%S')
-        params = (str_verify_time, self.db_https,)
-        proxies_set = self.db_controller.read(self._sql_select_verify, params, False)
+        proxies_set = self.worker.query_expired(verify_time, self.https)
         if not proxies_set:
             proxies_set = []
         return proxies_set
@@ -377,24 +322,16 @@ class ProxyController(object):
         Check single proxy ip and delete unreachable ip.
         """
         if self.check_proxy(proxy):
-            proxy.verify_time = time.strftime(
-                '%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            self.update_proxy(proxy, False)
+            proxy.verify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            self.worker.merge([proxy, ])
         else:
-            self.delete_proxy(proxy, False)
-
-    def add_black_list(self, proxy, is_main_thread=True):
-        """
-        Add fake ip to sqlite. To not get any more
-        """
-        proxy.available = 0
-        self.update_proxy(proxy, is_main_thread)
+            self.worker.delete(proxy.id)
 
     def clear_stop_file(self):
         """
         Delete stop file
         """
-        if self.check_process_stop_file():
+        if self.check_stop_file():
             try:
                 os.remove(self._process_stop_file)
             except BaseException, ex:
@@ -404,9 +341,9 @@ class ProxyController(object):
         """
         Process should be running
         """
-        return not self.check_process_stop_file()
+        return not self.check_stop_file()
 
-    def check_process_stop_file(self):
+    def check_stop_file(self):
         """
         Check stop file exist
         """
@@ -425,5 +362,5 @@ class ProxyController(object):
             elif message == 1:
                 self.logger.debug("Receive verify process stop.")
         self.clear_stop_file()
-        self.db_controller.close()
+        # self.db_controller.close()
         self.logger.dispose()
