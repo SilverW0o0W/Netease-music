@@ -17,24 +17,32 @@ class Proxy(Base):
     https = Column(Boolean)
     available = Column(Boolean)
     created = Column(DateTime, default=datetime.now)
-    verified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    verified = Column(DateTime, default=datetime.now)
 
 
 def session_watcher(commit):
     def _session_watcher(func):
         def wrapper(self, *args, **kwargs):
-            session = self.session()
-            kwargs['session'] = session
+            # If the args contain session, the session will not close.
+            has_connected = 'session' in kwargs and kwargs['session']
+            if has_connected:
+                session = kwargs['session']
+            else:
+                session = self.session()
+                kwargs['session'] = session
             try:
-                func(self, *args, **kwargs)
-            except Exception, ex:
+                result = func(self, *args, **kwargs)
+            except Exception as ex:
                 raise ex
             else:
                 if commit:
                     session.commit()
+                return result
             finally:
-                session.close()
-            return wrapper
+                if not has_connected:
+                    session.close()
+
+        return wrapper
 
     return _session_watcher
 
@@ -52,43 +60,57 @@ class ProxyWorker(object):
     @session_watcher(True)
     def merge(self, proxies, session=None):
         for proxy in proxies:
-            alchemy_proxy = Proxy(
-                id=proxy.id,
-                unique_id=proxy.unique_id,
-                ip=proxy.ip,
-                port=proxy.port,
-                https=proxy.https,
-                available=proxy.available,
-                verified=proxy.verified
-            )
-            session.merge(alchemy_proxy)
+            db_proxy = self.query(proxy.unique_id, session=session)
+            if db_proxy:
+                db_proxy.available = proxy.available
+                db_proxy.verified = proxy.verified
+            else:
+                alchemy_proxy = Proxy(
+                    id=proxy.id,
+                    unique_id=proxy.unique_id,
+                    ip=proxy.ip,
+                    port=proxy.port,
+                    https=proxy.https,
+                    available=proxy.available,
+                    verified=proxy.verified
+                )
+                session.add(alchemy_proxy)
 
     @session_watcher(False)
     def query(self, unique_id, session=None):
-        return session.query(Proxy).filter_by(Proxy.unique_id == unique_id).one_or_none()
+        return session.query(Proxy).filter_by(unique_id=unique_id).one_or_none()
 
     @session_watcher(True)
     def delete(self, id, session=None):
-        return session.query(Proxy).get(id).delete()
+        proxy = session.query(Proxy).get(id)
+        session.delete(proxy)
 
     @session_watcher(False)
-    def filter(self, session=None, *criterion):
-        return session.filter(criterion).all()
-
-    def query_available(self, time, https, count=None):
-        criterion = Proxy.verified > time, Proxy.https == https, Proxy.available == True
+    def query_available(self, time, https, count=None, session=None):
         if count:
-            return self.filter(criterion).order_by(desc(Proxy.verified)).limit(count)
+            return session.query(Proxy).filter(
+                Proxy.verified > time,
+                Proxy.https == https,
+                Proxy.available == True
+            ).order_by(desc(Proxy.verified)).limit(count)
         else:
-            return self.filter(criterion).order_by(desc(Proxy.verified)).all()
-
-    def query_expired(self, time, https):
-        criterion = Proxy.verified < time, Proxy.https == https, Proxy.available == True
-        return self.filter(criterion).all()
+            return session.query(Proxy).filter(
+                Proxy.verified > time,
+                Proxy.https == https,
+                Proxy.available == True
+            ).order_by(desc(Proxy.verified)).all()
 
     @session_watcher(False)
-    def count(self, session=None, *criterion):
-        return session.query(func.count(Proxy.id)).filter(criterion).scalar()
+    def query_expired(self, time, https, session=None):
+        return session.query(Proxy).filter(
+            Proxy.verified < time,
+            Proxy.https == https,
+            Proxy.available == True
+        ).all()
 
-    def available_count(self, https):
-        return self.count(Proxy.https == https)
+    @session_watcher(False)
+    def available_count(self, https, session=None):
+        return session.query(func.count(Proxy.id)).filter(
+            Proxy.https == https,
+            Proxy.available == True
+        ).scalar()

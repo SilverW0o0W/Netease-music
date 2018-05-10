@@ -18,8 +18,9 @@ class Proxy(object):
         self.https = https
         self.unique_id = self.unique_id()
         self.available = available
-        self.verified = verified if verified else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.created = created if created else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now()
+        self.verified = verified if verified else now
+        self.created = created if created else now
 
     def ip_port(self):
         """
@@ -32,7 +33,8 @@ class Proxy(object):
         nums = self.ip.split('.')
         for num in nums:
             unique_id += num.zfill(3)
-        unique_id += self.port + 1 if self.https else 0
+        unique_id += self.port
+        unique_id += '1' if self.https else '0'
         return unique_id
 
 

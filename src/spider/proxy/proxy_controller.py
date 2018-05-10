@@ -322,7 +322,7 @@ class ProxyController(object):
         Check single proxy ip and delete unreachable ip.
         """
         if self.check_proxy(proxy):
-            proxy.verify_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            proxy.verified = datetime.now()
             self.worker.merge([proxy, ])
         else:
             self.worker.delete(proxy.id)
