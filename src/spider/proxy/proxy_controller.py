@@ -9,16 +9,16 @@ import time
 from datetime import datetime, timedelta
 
 import threading
+import threadpool
 from multiprocessing import Process, Pipe
+
 import requests
 from spider.logging_controller import LoggingController
 
-import threadpool
-
-from spider.sqlite_controller import SqliteController
 from proxy import Proxy, ProxySet
 from proxy_spider import ProxySpider
 from proxy_alchemy import ProxyWorker
+
 from bs4 import BeautifulSoup
 
 LOCK = threading.Lock()
@@ -41,23 +41,11 @@ class ProxyController(object):
     _crawl_check_seconds = 30
     _crawl_pool_max = 20
 
-    _verify_check_seconds = 300
-    _verify_minutes = 5
+    _verify_check_seconds = 180
+    _verify_minutes = 3
     _verify_pool_max = 30
 
     _proxy_spider_page = 2
-
-    _sql_create_table = "create table proxy_ip(id INTEGER primary key autoincrement, ip VARCHAR(20), port VARCHAR(10),https TINYINT,available TINYINT,verify_time TIMESTAMP default (datetime('now', 'localtime')), create_time TIMESTAMP default (datetime('now', 'localtime')))"
-    _sql_insert = "insert into proxy_ip values(null, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))"
-    _sql_delete = 'delete from proxy_ip where id = ?'
-    _sql_update = 'update proxy_ip set ip = ?, port = ?, https = ?, available = ?, verify_time = ? where id = ?'
-    _sql_select_exist = 'select * from proxy_ip where ip = ? and port = ?'
-    _sql_select_verify = 'select * from proxy_ip where verify_time < datetime(?) and https = ? and available = 1'
-    _sql_select_available_all = 'select * from proxy_ip where verify_time > datetime(?) and https = ? and available = 1 order by verify_time desc'
-    _sql_select_available_limit = 'select * from proxy_ip where verify_time > datetime(?) and https = ? and available = 1 order by verify_time desc limit ? offset ?'
-    _sql_select_available_count = 'select count(*) from proxy_ip where https = ? and available = 1'
-
-    _db_path = 'proxy_ip.db'
 
     _min_storage = 20
     _min_available = 10
@@ -68,9 +56,7 @@ class ProxyController(object):
         self.logger = LoggingController(name='proxy.log')
         self.https = https
         self.proxy_spider = ProxySpider(self.logger)
-        self.worker = ProxyWorker('')
-        # self.db_controller = SqliteController(self._sql_create_table, self._db_path)
-        # self.db_controller.init_db()
+        self.worker = ProxyWorker('sqlite:///proxy.db')
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
 
@@ -81,7 +67,7 @@ class ProxyController(object):
                          check_process.name, check_process.pid)
 
         self.verify_pool = None
-        verify_process = Process(name="ProxyVerify", target=self.verify_storage_process)
+        verify_process = Process(target=self.verify_storage_process)
         verify_process.start()
         self.logger.info("ProxyVerify start. Name: {0}, PID: {1}.",
                          verify_process.name, verify_process.pid)
@@ -203,16 +189,21 @@ class ProxyController(object):
             LOCK.release()
         return proxy
 
-    def convert_proxies(self, proxy_value_list):
+    def convert_proxies(self, sql_proxies):
         """
         Convert data from db to proxy_ip instance
         """
         proxies = [
             Proxy(
-                value[1], value[2], value[3] == 1, value[4] == 1, value[5],
-                value[6], value[0]
+                proxy.ip,
+                proxy.port,
+                proxy.https,
+                available=proxy.available,
+                verified=proxy.verified,
+                created=proxy.created,
+                id=proxy.id
             )
-            for value in proxy_value_list
+            for proxy in sql_proxies
         ]
         return proxies
 
@@ -252,7 +243,7 @@ class ProxyController(object):
         """
         Check proxy existed in sqlite
         """
-        return self.worker.query(proxy.id) is not None
+        return self.worker.query(proxy.unique_id) is not None
 
     def crawl_proxy(self):
         """
@@ -299,8 +290,8 @@ class ProxyController(object):
         """
         self.logger.info('Verify proxy start')
         try:
-            ip_value_list = self.select_expired_proxies()
-            proxies = self.convert_proxies(ip_value_list)
+            sql_proxies = self.select_expired_proxies()
+            proxies = self.convert_proxies(sql_proxies)
             if self.should_run():
                 self.verify_proxies(proxies)
         except StandardError, error:

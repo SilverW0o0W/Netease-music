@@ -43,10 +43,10 @@ class ProxySet(object):
     This is the set class for proxy ip
     """
 
-    _EXPIRE_TIME = 2
+    _EXPIRE_TIME = 20
 
-    def __init__(self, ip_list=None):
-        self.ip_list = [] if ip_list is None else ip_list
+    def __init__(self, proxies=None):
+        self.proxies = [] if not proxies else proxies
         self.create_time = datetime.now()
 
     def available(self):
@@ -54,19 +54,19 @@ class ProxySet(object):
         Check set count and available time
         """
         time_now = datetime.now()
-        if len(self.ip_list) < 1:
+        if len(self.proxies) < 1:
             return False
-        delta = timedelta(minutes=self._EXPIRE_TIME)
+        delta = timedelta(seconds=self._EXPIRE_TIME)
         return time_now < self.create_time + delta
 
     def append(self, proxy_ip):
         """
         Append proxy ip
         """
-        self.ip_list.append(proxy_ip)
+        self.proxies.append(proxy_ip)
 
     def pop(self):
         """
         Get a proxy ip
         """
-        return self.ip_list.pop()
+        return self.proxies.pop()

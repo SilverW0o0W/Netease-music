@@ -13,7 +13,7 @@ class Proxy(Base):
     id = Column(Integer, primary_key=True)
     unique_id = Column(String(20), unique=True)
     ip = Column(String(15))
-    port = Column(Integer)
+    port = Column(String(5))
     https = Column(Boolean)
     available = Column(Boolean)
     created = Column(DateTime, default=datetime.now)
@@ -50,12 +50,20 @@ def session_watcher(commit):
 class ProxyWorker(object):
     def __init__(self, con_string):
         self.con_string = con_string
-        self.engine = create_engine(self.con_string)
-        Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+        self.engine = None
+        self.Session = None
+        self.create_table()
 
     def session(self):
+        if not self.engine:
+            self.engine = create_engine(self.con_string)
+            self.Session = sessionmaker(bind=self.engine)
         return self.Session()
+
+    def create_table(self):
+        engine = create_engine(self.con_string)
+        Base.metadata.create_all(engine)
+        engine.dispose()
 
     @session_watcher(True)
     def merge(self, proxies, session=None):
