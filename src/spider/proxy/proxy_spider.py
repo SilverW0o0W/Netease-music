@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
-from proxy_ip import ProxyIP
+from proxy import Proxy
 
 
 class ProxySpider(object):
@@ -58,8 +58,7 @@ class ProxySpider(object):
                     ip = ips[x]
                     tds = ip.findAll("td")
                     is_https = tds[5].contents[0] == 'HTTPS'
-                    ip_temp = ProxyIP(tds[1].contents[0],
-                                      tds[2].contents[0], is_https)
+                    ip_temp = Proxy(tds[1].contents[0], tds[2].contents[0], is_https)
                     if https == ip_temp.https:
                         proxy_ip_list.append(ip_temp)
             except StandardError, error:

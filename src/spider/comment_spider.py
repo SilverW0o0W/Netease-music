@@ -14,7 +14,7 @@ from encrypto import generate_data
 from logging_controller import LoggingController
 from music_spider import MusicSpider
 from comment_writer import CommentWriter
-from proxy_controller import ProxyController
+from proxy.proxy_controller import ProxyController
 
 
 class CommentSpider(object):
