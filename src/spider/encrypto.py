@@ -33,20 +33,22 @@ def rsa_encrypt(text, pub_key, modulus):
 
 
 call_count = 10
-secret_key = None
+_keys = None
 
 
 def create_secret_key(size, refresh=False):
     """
     Create random 16 key
     """
-    global call_count, secret_key
+    global call_count, _keys
     if call_count >= 10 or refresh:
         secret_key = ''.join(map(lambda xx: (hex(ord(xx))[2:]), os.urandom(size)))[0:16]
+        enc_sec_key = rsa_encrypt(secret_key, pub_key, modulus)
+        _keys = (secret_key, enc_sec_key)
         call_count = 0
     else:
         call_count = call_count + 1
-    return secret_key
+    return _keys
 
 
 modulus = '00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7'
@@ -59,11 +61,10 @@ def generate_data(text):
     Generate data
     """
     text = json.dumps(text)
-    sec_key = create_secret_key(16)
-    enc_text = aes_encrypt(aes_encrypt(text, nonce), sec_key)
-    enc_sec_key = rsa_encrypt(sec_key, pub_key, modulus)
+    keys = create_secret_key(16)
+    enc_text = aes_encrypt(aes_encrypt(text, nonce), keys[0])
     data = {
         'params': enc_text,
-        'encSecKey': enc_sec_key
+        'encSecKey': keys[1]
     }
     return data
