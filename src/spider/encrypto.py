@@ -8,8 +8,12 @@ import base64
 import json
 from Crypto.Cipher import AES
 
-
 # https://github.com/darknessomi/musicbox/wiki
+
+modulus = '00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7'
+nonce = '0CoJUm6Qyw8W8jud'
+pub_key = '010001'
+
 
 def aes_encrypt(text, sec_key):
     """
@@ -32,28 +36,19 @@ def rsa_encrypt(text, pub_key, modulus):
     return format(result, 'x').zfill(256)
 
 
-call_count = 10
 _keys = None
 
 
-def create_secret_key(size, refresh=False):
+def create_secret_key(refresh=False):
     """
     Create random 16 key
     """
-    global call_count, _keys
-    if call_count >= 10 or refresh:
-        secret_key = ''.join(map(lambda xx: (hex(ord(xx))[2:]), os.urandom(size)))[0:16]
+    global _keys
+    if not _keys or refresh:
+        secret_key = ''.join(map(lambda xx: (hex(ord(xx))[2:]), os.urandom(16)))[0:16]
         enc_sec_key = rsa_encrypt(secret_key, pub_key, modulus)
         _keys = (secret_key, enc_sec_key)
-        call_count = 0
-    else:
-        call_count = call_count + 1
     return _keys
-
-
-modulus = '00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7'
-nonce = '0CoJUm6Qyw8W8jud'
-pub_key = '010001'
 
 
 def generate_data(text):
@@ -61,7 +56,7 @@ def generate_data(text):
     Generate data
     """
     text = json.dumps(text)
-    keys = create_secret_key(16)
+    keys = create_secret_key()
     enc_text = aes_encrypt(aes_encrypt(text, nonce), keys[0])
     data = {
         'params': enc_text,

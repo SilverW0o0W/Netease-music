@@ -106,13 +106,15 @@ class CommentSpider(object):
         else:
             return adapter.adapt_comment_set(content, song_id)
 
-    def get_song_comment(self, song_id, retry=False):
+    def get_comment(self, song_id, retry=False):
         """
         Get a song all comment
         """
         total_comment_set = self.request_comment_set(song_id, retry=True)
         total = total_comment_set.total
+        self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_dict = self.get_data_dict(total)
+        self.logger.info('Comment data length: {0}.', len(data_dict))
         return tuple(
             [
                 self.request_comment_set(song_id, data=data_dict[index], retry=retry)
