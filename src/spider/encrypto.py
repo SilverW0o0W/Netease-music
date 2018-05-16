@@ -7,6 +7,9 @@ import os
 import base64
 import json
 from Crypto.Cipher import AES
+import threading
+
+Lock = threading.Lock()
 
 # https://github.com/darknessomi/musicbox/wiki
 
@@ -39,6 +42,15 @@ def rsa_encrypt(text, pub_key, modulus):
 _keys = None
 
 
+def lock(func):
+    def wrapper(*args, **kwargs):
+        with Lock:
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
+@lock
 def create_secret_key(refresh=False):
     """
     Create random 16 key
