@@ -72,7 +72,7 @@ class CommentSpider(object):
             for i in range(page):
                 yield i, generate_data(self.text(i * limit, limit))
 
-    def request_comment_set(self, song_id, data=None, retry=False, hot=False):
+    def request_comment_set(self, song_id, data=None, hot=False):
         """
         Send request and analysis response
         """
@@ -96,30 +96,30 @@ class CommentSpider(object):
         else:
             return adapter.adapt_comment_set(content, song_id)
 
-    def get_comment(self, song_id, retry=False):
+    def get_comment(self, song_id, hot=False):
         """
         Get a song all comment
         """
-        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total_comment_set = self.request_comment_set(song_id, hot=hot)
         total = total_comment_set.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total=total, limit=self._limit)
         return [
-            self.request_comment_set(song_id, data=data, retry=retry)
+            self.request_comment_set(song_id, data=data, hot=hot)
             for _, data in data_gen
         ]
 
-    def get_comment_multithread(self, song_id, retry=False):
+    def get_comment_multithread(self, song_id, hot=False):
         """
         Get a song all comment
         """
-        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total_comment_set = self.request_comment_set(song_id, hot=hot)
         total = total_comment_set.total
         times = total // self._limit + 0 if total % self._limit == 0 else 1
         data_gen = self.post_data(total)
         comment_dict = {}
         param_list = [
-            ((song_id, data_gen, retry, comment_dict,), None)
+            ((song_id, data_gen, hot, comment_dict,), None)
             for _ in times
         ]
         pool_requests = threadpool.makeRequests(
@@ -129,7 +129,7 @@ class CommentSpider(object):
         pool.wait()
         return comment_dict
 
-    def request_comment_thread(self, song_id, data_generator, retry, comment_dict):
+    def request_comment_thread(self, song_id, data_generator, hot, comment_dict):
         """
         This is multi-threading request.
         """
@@ -138,37 +138,37 @@ class CommentSpider(object):
         except StopIteration as stop_ex:
             self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
             return
-        comment = self.request_comment_set(song_id, data=data, retry=retry)
+        comment = self.request_comment_set(song_id, data=data, hot=hot)
         comment_dict[index] = comment
 
     @check_writer
-    def write_comment(self, song_id, retry=False):
+    def write_comment(self, song_id, hot=False):
         """
         Write a song all comment
         """
-        total_comment_set = self.request_comment_set(song_id, retry=True)
+        total_comment_set = self.request_comment_set(song_id, hot=hot)
         total = total_comment_set.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total=total, limit=self._limit)
         for index, data in data_gen:
             self.logger.debug("Request comment start. Index: {0}.", index)
-            comment_set = self.request_comment_set(song_id, data=data, retry=retry)
+            comment_set = self.request_comment_set(song_id, data=data, hot=hot)
             self.logger.debug("Request comment success. Index: {0}.", index)
             self.writer.send_message(comment_set.comments)
             self.logger.debug("Send comment done. Index: {0}.", index)
 
     @check_writer
-    def write_comment_multithread(self, song_id, retry=False):
+    def write_comment_multithread(self, song_id, hot=False):
         """
         Get a song all comment
         """
-        total_comment = self.request_comment_set(song_id, retry=True)
+        total_comment = self.request_comment_set(song_id, hot=hot)
         total = total_comment.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         times = total // self._limit + 0 if total % self._limit == 0 else 1
         data_gen = self.post_data(total)
         param_list = [
-            ((song_id, data_gen, retry,), None)
+            ((song_id, data_gen, hot,), None)
             for _ in times
         ]
         pool_requests = threadpool.makeRequests(
@@ -178,7 +178,7 @@ class CommentSpider(object):
         pool.wait()
         self.logger.info('Write comment done. Song id: {}', song_id)
 
-    def write_comment_thread(self, song_id, data_generator, retry):
+    def write_comment_thread(self, song_id, data_generator, hot):
         """
         This is multi-threading request.
         """
@@ -188,7 +188,7 @@ class CommentSpider(object):
             self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
             return
         self.logger.debug("Request comment start. Index: {0}.", index)
-        comment = self.request_comment_set(song_id, data=data, retry=retry)
+        comment = self.request_comment_set(song_id, data=data, hot=hot)
         self.logger.debug('Send comment start. Index: {0}.', index)
         self.writer.send_message(comment.comments)
         self.logger.debug("Send comment done. Index: {0}.", index)
