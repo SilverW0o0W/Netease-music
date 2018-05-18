@@ -34,7 +34,7 @@ class ProxyController(object):
     _http_title = 'http://info.cern.ch'
     _https_url = ''
     _https_title = ''
-    _thread_list_split = 3
+    _proxy_split = 3
 
     _process_stop_file = 'proxy.stop'
 
@@ -81,9 +81,9 @@ class ProxyController(object):
         """
         Check proxy available. Timeout: 15s. Retry: 3 times.
         """
-        transfer_method = 'https' if proxy.https else 'http'
+        transfer_method = 'https' if self.https else 'http'
         proxies = {transfer_method: proxy.ip_port()}
-        url = self._https_url if proxy.https else self._http_url
+        url = self._https_url if self.https else self._http_url
         requests.adapters.DEFAULT_RETRIES = 3
         with requests.Session() as session:
             try:
@@ -125,7 +125,7 @@ class ProxyController(object):
         """
         Check proxy available and add into sqlite db.
         """
-        split_num = self._thread_list_split
+        split_num = self._proxy_split
         times = len(proxies) // split_num
         split_list = []
         for i in range(times + 1):
@@ -227,7 +227,6 @@ class ProxyController(object):
                     time.sleep(5)
                     if self.should_run():
                         break
-
         self.logger.info('Crawl process close')
         self.pipe[1].send(0)
 
