@@ -20,8 +20,8 @@ class ProxySpider(object):
 
     def __init__(self, logger):
         self.last_page = 0
-        self.last_crawl_time = None
-        self.refresh_minutes = 5
+        self.last_crawl = datetime(year=1970)
+        self.refresh_minutes = 2
         self.logger = logger
 
     def get_page_number(self, page_count):
@@ -30,8 +30,8 @@ class ProxySpider(object):
         Else return new page.
         """
         delta = timedelta(minutes=self.refresh_minutes)
-        if not self.last_crawl_time or datetime.now() >= self.last_crawl_time + delta or self.last_page > 10:
-            self.last_crawl_time = datetime.now()
+        if datetime.now() >= self.last_crawl + delta or self.last_page > 10:
+            self.last_crawl = datetime.now()
             self.last_page = 0
         page = self.last_page
         self.last_page += page_count
@@ -41,7 +41,7 @@ class ProxySpider(object):
         """
         Get proxy ip
         """
-        proxy_ip_list = []
+        proxies = []
         current_page = self.get_page_number(page_count)
         page_count += current_page + 1
         for i in range(current_page + 1, page_count):
@@ -58,11 +58,11 @@ class ProxySpider(object):
                     ip = ips[x]
                     tds = ip.findAll("td")
                     is_https = tds[5].contents[0] == 'HTTPS'
-                    ip_temp = Proxy(tds[1].contents[0], tds[2].contents[0], is_https)
-                    if https == ip_temp.https:
-                        proxy_ip_list.append(ip_temp)
+                    proxy_temp = Proxy(tds[1].contents[0], tds[2].contents[0], is_https)
+                    if https == proxy_temp.https:
+                        proxies.append(proxy_temp)
             except StandardError, error:
                 self.logger.warn(error.message)
                 continue
-        self.logger.info('Crawl ip count: %s' % len(proxy_ip_list))
-        return proxy_ip_list
+        self.logger.info('Crawl ip count: %s' % len(proxies))
+        return proxies
