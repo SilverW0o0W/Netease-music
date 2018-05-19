@@ -137,12 +137,10 @@ def adapt_artist(content, object_id, all_size=True, hot_songs=True):
             artist.mv_size = content['artist']['mvSize']
         artist.hot_songs = ()
         if hot_songs:
-            artist.hot_songs = tuple(
-                [
-                    adapt_song(content, content['id'])
-                    for content in content['hotSongs']
-                ]
-            )
+            artist.hot_songs = [
+                adapt_song(content, content['id'])
+                for content in content['hotSongs']
+            ]
     except KeyError, error:
         print error.message
     return artist
@@ -163,12 +161,10 @@ def adapt_album(content, object_id):
         album.artists = _get_artists(content['album']['artists'])
         album.songs = ()
         if 'songs' in content['album'] and len(content['album']['songs']) > 0:
-            album.songs = tuple(
-                [
-                    adapt_song(song, song['id'])
-                    for song in content['album']['songs']
-                ]
-            )
+            album.songs = [
+                adapt_song(song, song['id'])
+                for song in content['album']['songs']
+            ]
     except KeyError, error:
         print error.message
     return album
@@ -215,12 +211,10 @@ def adapt_hot_comment_set(content, object_id):
 
 @convert_str_id
 def adapt_comments(contents, song_id):
-    return tuple(
-        [
-            adapt_comment(content, content['commentId'], song_id=song_id)
-            for content in contents
-        ]
-    )
+    return [
+        adapt_comment(content, content['commentId'], song_id=song_id)
+        for content in contents
+    ]
 
 
 @convert_str_id
