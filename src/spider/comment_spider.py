@@ -5,8 +5,6 @@ Initialize a CommentSpider instance, add call function with a song id. Return So
 """
 
 import time
-
-import threading
 import threadpool
 
 import music_adapter as adapter
@@ -30,9 +28,6 @@ class CommentSpider(object):
     """
     Spider part
     """
-
-    Lock = threading.Lock()
-
     _comment_url = "http://music.163.com/weapi/v1/resource/comments/R_SO_4_{0}/?csrf_token="
     _hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
 
@@ -61,22 +56,24 @@ class CommentSpider(object):
         }
         return text
 
-    def post_data(self, total=None, limit=20):
+    def data(self):
+        return generate_data(self.text())
+
+    # @safe_generator
+    def post_data(self, total, limit=20):
         """
         Get request encrypt data for one song
         """
-        if not total:
-            generate_data(self.text())
-        else:
-            page = total // limit + 0 if total % limit == 0 else 1
-            for i in range(page):
-                yield i, generate_data(self.text(i * limit, limit))
+        page = 0 if total % limit == 0 else 1
+        page += total // limit
+        for i in range(page):
+            yield i, generate_data(self.text(i * limit, limit))
 
     def request_comment_set(self, song_id, data=None, hot=False):
         """
         Send request and analysis response
         """
-        data = self.post_data() if not data else data
+        data = self.data() if not data else data
         url = self._hot_comment_url if hot else self._comment_url
         url = str.format(url, song_id)
         content = None
@@ -86,11 +83,11 @@ class CommentSpider(object):
                 proxy = self.proxy.get_proxy()
                 proxies = {'http': proxy.ip + ':' + proxy.port}
             content = self.spider.send_request('POST', url, data=data, proxies=proxies)
-            if not retry:
+            if not True:
                 break
         if content is None:
             return None
-        time.sleep(1)
+        time.sleep(0.5)
         if hot:
             return adapter.adapt_hot_comment_set(content, song_id)
         else:
@@ -103,7 +100,7 @@ class CommentSpider(object):
         total_comment_set = self.request_comment_set(song_id, hot=hot)
         total = total_comment_set.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
-        data_gen = self.post_data(total=total, limit=self._limit)
+        data_gen = self.post_data(total, limit=self._limit)
         return [
             self.request_comment_set(song_id, data=data, hot=hot)
             for _, data in data_gen
@@ -120,7 +117,7 @@ class CommentSpider(object):
         comment_dict = {}
         param_list = [
             ((song_id, data_gen, hot, comment_dict,), None)
-            for _ in times
+            for _ in range(times)
         ]
         pool_requests = threadpool.makeRequests(
             self.request_comment_thread, param_list)
@@ -149,7 +146,7 @@ class CommentSpider(object):
         total_comment_set = self.request_comment_set(song_id, hot=hot)
         total = total_comment_set.total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
-        data_gen = self.post_data(total=total, limit=self._limit)
+        data_gen = self.post_data(total, limit=self._limit)
         for index, data in data_gen:
             self.logger.debug("Request comment start. Index: {0}.", index)
             comment_set = self.request_comment_set(song_id, data=data, hot=hot)
@@ -169,7 +166,7 @@ class CommentSpider(object):
         data_gen = self.post_data(total)
         param_list = [
             ((song_id, data_gen, hot,), None)
-            for _ in times
+            for _ in range(times)
         ]
         pool_requests = threadpool.makeRequests(
             self.write_comment_thread, param_list)
@@ -185,6 +182,9 @@ class CommentSpider(object):
         try:
             index, data = next(data_generator)
         except StopIteration as stop_ex:
+            self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
+            return
+        except Exception as stop_ex:
             self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
             return
         self.logger.debug("Request comment start. Index: {0}.", index)
