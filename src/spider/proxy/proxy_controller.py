@@ -46,7 +46,6 @@ class ProxyController(object):
     _verify_pool_max = 30
 
     _min_storage = 20
-    _min_available = 10
 
     _cache_proxy_set = ProxySet()
 
