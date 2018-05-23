@@ -35,11 +35,13 @@ class CommentWriter(ProcessHandler):
             while True:
                 message = pipe.recv()
                 if self.receive_stop(message):
+                    self.logger.info('Receive dispose.')
                     engine.dispose()
                     break
                 self.add_record(DBSession, message)
         except BaseException, ex:
             self.logger.error("Writing process error. Reason: {0}.", ex.message)
+        self.logger.info('Writer dispose.')
 
     def add_record(self, DBSession, comments):
         """
@@ -48,7 +50,6 @@ class CommentWriter(ProcessHandler):
         :param comments:a list of comments
         :return:
         """
-        self.logger.debug('Write start.')
         session = DBSession()
         for comment in comments:
             try:
@@ -68,7 +69,6 @@ class CommentWriter(ProcessHandler):
                 self.logger.warning(ex.message)
             else:
                 session.commit()
-        self.logger.debug('Write complete.')
         session.close()
 
 # def add_record(self, DBSession, comments):

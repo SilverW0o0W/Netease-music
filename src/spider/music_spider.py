@@ -23,6 +23,9 @@ class MusicSpider(object):
         'Accept-Language': 'zh-CN,zh;q=0.9'
     }
 
+    def __init__(self, timeout=15):
+        self.timeout = timeout
+
     def send_request(self, method, url, data=None, json=True, proxies=None):
         """
         Send comment request.
@@ -34,15 +37,20 @@ class MusicSpider(object):
                     url=url,
                     headers=self.headers,
                     data=data,
-                    proxies=proxies)
+                    proxies=proxies,
+                    timeout=self.timeout
+                )
                 content = response.json() if json else response.content
             except requests.RequestException, ex:
+                print proxies,
                 print ex.message
                 content = None
             except ValueError, ex:
+                print proxies,
                 print ex.message
                 content = None
             except BaseException, ex:
+                print proxies,
                 print ex.message
         return content
 

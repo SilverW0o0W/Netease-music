@@ -34,21 +34,18 @@ class ProxyController(object):
     _http_title = 'http://info.cern.ch'
     _https_url = ''
     _https_title = ''
-    _thread_list_split = 3
+    _proxy_split = 3
 
-    _process_stop_file = 'process.stop'
+    _process_stop_file = 'proxy.stop'
 
-    _crawl_check_seconds = 30
+    _crawl_check_seconds = 20
     _crawl_pool_max = 20
 
     _verify_check_seconds = 180
     _verify_minutes = 3
     _verify_pool_max = 30
 
-    _proxy_spider_page = 2
-
     _min_storage = 20
-    _min_available = 10
 
     _cache_proxy_set = ProxySet()
 
@@ -61,7 +58,7 @@ class ProxyController(object):
         self.pipe = Pipe(duplex=False)
 
         self.crawl_pool = None
-        check_process = Process(name="ProxyCheck", target=self.check_storage_process)
+        check_process = Process(target=self.check_storage_process)
         check_process.start()
         self.logger.info("ProxyCheck start. Name: {0}, PID: {1}.",
                          check_process.name, check_process.pid)
@@ -74,37 +71,27 @@ class ProxyController(object):
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
-            try:
-                LOCK.acquire()
-                # double check
+            with LOCK:
                 if not cls._instance:
                     cls._instance = super(ProxyController, cls).__new__(cls, *args, **kwargs)
-            finally:
-                LOCK.release()
         return cls._instance
 
     def check_proxy(self, proxy):
         """
         Check proxy available. Timeout: 15s. Retry: 3 times.
         """
-        transfer_method = 'https' if proxy.https else 'http'
-        ip_port = proxy.ip_port()
-        proxies = {transfer_method: ip_port}
-        url = self._https_url if proxy.https else self._http_url
+        transfer_method = 'https' if self.https else 'http'
+        proxies = {transfer_method: proxy.ip_port()}
+        url = self._https_url if self.https else self._http_url
         requests.adapters.DEFAULT_RETRIES = 3
-        session = requests.Session()
-        session.keep_alive = False
-        headers = {'Connection': 'False'}
-        try:
-            response = session.get(url, proxies=proxies, timeout=10, headers=headers)
-            proxy.available = self.check_response(response, url)
-            return proxy.available
-        except requests.exceptions.RequestException, ex:
-            proxy.available = False
-            return False
-        finally:
-            session.close()
-            time.sleep(0.1)
+        with requests.Session() as session:
+            try:
+                session.keep_alive = False
+                response = session.get(url, proxies=proxies, timeout=15)
+                proxy.available = self.check_response(response, url)
+            except requests.exceptions.RequestException as ex:
+                proxy.available = False
+        return proxy.available
 
     def check_response(self, response, url):
         """
@@ -137,7 +124,7 @@ class ProxyController(object):
         """
         Check proxy available and add into sqlite db.
         """
-        split_num = self._thread_list_split
+        split_num = self._proxy_split
         times = len(proxies) // split_num
         split_list = []
         for i in range(times + 1):
@@ -213,7 +200,7 @@ class ProxyController(object):
         """
         delta = timedelta(minutes=self._verify_minutes)
         avail_time = datetime.now() - delta
-        proxies_set = self.worker.query_available(avail_time, self.https, count)
+        proxies_set = self.worker.query_available(avail_time, count)
         if not proxies_set:
             proxies_set = []
         return proxies_set
@@ -222,20 +209,23 @@ class ProxyController(object):
         """
         Get total record in db.
         """
-        return self.worker.available_count(self.https)
+        return self.worker.available_count()
 
     def check_storage_process(self):
         """
         Check db storage status
         """
         self.crawl_pool = threadpool.ThreadPool(self._crawl_pool_max)
+
         while self.should_run():
-            count = self.get_db_count()
-            if count < self._min_storage:
+            if self.get_db_count() < self._min_storage:
                 self.crawl_proxy()
+                time.sleep(10)
             else:
-                time.sleep(self._crawl_check_seconds - 5)
-            time.sleep(5)
+                for _ in range(0, self._crawl_check_seconds, 5):
+                    time.sleep(5)
+                    if self.should_run():
+                        break
         self.logger.info('Crawl process close')
         self.pipe[1].send(0)
 
@@ -251,13 +241,12 @@ class ProxyController(object):
         """
         self.logger.info('Crawl proxy start')
         try:
-            proxies = self.proxy_spider.get_proxies(self.https, self._proxy_spider_page)
+            proxies = self.proxy_spider.get_proxies(self.https)
             if self.should_run():
                 self.add_proxies(proxies)
         except Exception, ex:
             self.logger.warn('Crawl proxy exception. Reason: {0}.', ex.message)
-        finally:
-            self.logger.info('Crawl proxy done')
+        self.logger.info('Crawl proxy done')
 
     def select_expired_proxies(self):
         """
@@ -265,7 +254,7 @@ class ProxyController(object):
         """
         delta = timedelta(minutes=self._verify_minutes)
         verify_time = datetime.now() - delta
-        proxies_set = self.worker.query_expired(verify_time, self.https)
+        proxies_set = self.worker.query_expired(verify_time)
         if not proxies_set:
             proxies_set = []
         return proxies_set
