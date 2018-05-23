@@ -7,17 +7,17 @@ import os
 import random
 import time
 from datetime import datetime, timedelta
+import traceback
 
 import threading
 import threadpool
 from multiprocessing import Process, Pipe
 
 import requests
-from spider.logging_controller import LoggingController
 
-from proxy import Proxy, ProxySet
-from proxy_spider import ProxySpider
-from proxy_alchemy import ProxyWorker
+from .proxy import Proxy, ProxySet
+from .proxy_spider import ProxySpider
+from .proxy_alchemy import ProxyWorker
 
 from bs4 import BeautifulSoup
 
@@ -49,8 +49,9 @@ class ProxyController(object):
 
     _cache_proxy_set = ProxySet()
 
-    def __init__(self, https):
-        self.logger = LoggingController(name='proxy.log')
+    def __init__(self, logger, https):
+        # self.logger = Logger(name='proxy.log')
+        self.logger = logger
         self.https = https
         self.proxy_spider = ProxySpider(self.logger)
         self.worker = ProxyWorker('sqlite:///proxy.db')
@@ -60,20 +61,18 @@ class ProxyController(object):
         self.crawl_pool = None
         check_process = Process(target=self.check_storage_process)
         check_process.start()
-        self.logger.info("ProxyCheck start. Name: {0}, PID: {1}.",
-                         check_process.name, check_process.pid)
+        self.logger.info("ProxyCheck start. PID: {}.", check_process.pid)
 
         self.verify_pool = None
         verify_process = Process(target=self.verify_storage_process)
         verify_process.start()
-        self.logger.info("ProxyVerify start. Name: {0}, PID: {1}.",
-                         verify_process.name, verify_process.pid)
+        self.logger.info("ProxyVerify start. PID: {}.", verify_process.pid)
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             with LOCK:
                 if not cls._instance:
-                    cls._instance = super(ProxyController, cls).__new__(cls, *args, **kwargs)
+                    cls._instance = super(ProxyController, cls).__new__(cls)
         return cls._instance
 
     def check_proxy(self, proxy):
@@ -164,16 +163,13 @@ class ProxyController(object):
         Get a proxy ip from collection
         """
         first_waiting = True
-        LOCK.acquire()
-        try:
+        with LOCK:
             while not self._cache_proxy_set.available():
                 if not first_waiting:
                     time.sleep(3)
                 self._cache_proxy_set = self.get_proxy_set()
                 first_waiting = False
             proxy = self._cache_proxy_set.pop()
-        finally:
-            LOCK.release()
         return proxy
 
     def convert_proxies(self, sql_proxies):
@@ -244,8 +240,8 @@ class ProxyController(object):
             proxies = self.proxy_spider.get_proxies(self.https)
             if self.should_run():
                 self.add_proxies(proxies)
-        except Exception, ex:
-            self.logger.warn('Crawl proxy exception. Reason: {0}.', ex.message)
+        except Exception:
+            self.logger.warn('Crawl proxy exception. Reason: {0}.', traceback.format_exc())
         self.logger.info('Crawl proxy done')
 
     def select_expired_proxies(self):
@@ -266,7 +262,7 @@ class ProxyController(object):
         self.verify_pool = threadpool.ThreadPool(self._verify_pool_max)
         while self.should_run():
             self.verify_proxy()
-            for i in range(self._verify_check_seconds / 10):
+            for i in range(self._verify_check_seconds // 10):
                 if not self.should_run():
                     break
                 time.sleep(10)
@@ -283,8 +279,8 @@ class ProxyController(object):
             proxies = self.convert_proxies(sql_proxies)
             if self.should_run():
                 self.verify_proxies(proxies)
-        except StandardError, error:
-            print error.message
+        except Exception:
+            self.logger.error('Unknown error occurred. Reason: {}.', traceback.format_exc())
         finally:
             self.logger.info('Verify proxy done')
 
@@ -314,8 +310,8 @@ class ProxyController(object):
         if self.check_stop_file():
             try:
                 os.remove(self._process_stop_file)
-            except BaseException, ex:
-                self.logger.warning('Delete stop file failed. Reason: {0}', ex)
+            except Exception:
+                self.logger.warning('Delete stop file failed. Reason: {0}.', traceback.format_exc())
 
     def should_run(self):
         """
@@ -333,8 +329,8 @@ class ProxyController(object):
         """
         Release resource.
         """
-        stop_file = open(self._process_stop_file, "w")
-        stop_file.close()
+        with open(self._process_stop_file, "w"):
+            self.logger.info("Stop signal created")
         for i in range(2):
             message = self.pipe[0].recv()
             if message == 0:
@@ -342,5 +338,3 @@ class ProxyController(object):
             elif message == 1:
                 self.logger.debug("Receive verify process stop.")
         self.clear_stop_file()
-        # self.db_controller.close()
-        self.logger.dispose()

@@ -10,7 +10,7 @@ import threadpool
 
 import music_adapter as adapter
 from encrypto import generate_data
-from logging_controller import LoggingController
+from logger.logger import Logger
 from music_spider import MusicSpider
 from comment_writer import CommentWriter
 from proxy.proxy_controller import ProxyController
@@ -38,7 +38,7 @@ class CommentSpider(object):
     _request_thread_limit = 30
 
     def __init__(self, use_proxy=False, con_string=None):
-        self.logger = LoggingController(name='comment.log')
+        self.logger = Logger(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
         self.proxy = ProxyController(https=False) if use_proxy else None
