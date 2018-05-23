@@ -94,31 +94,27 @@ class ProxyWorker(object):
         session.delete(proxy)
 
     @session_watcher(False)
-    def query_available(self, time, https, count=None, session=None):
+    def query_available(self, time, count=None, session=None):
         if count:
             return session.query(Proxy).filter(
                 Proxy.verified > time,
-                Proxy.https == https,
                 Proxy.available == True
             ).order_by(desc(Proxy.verified)).limit(count)
         else:
             return session.query(Proxy).filter(
                 Proxy.verified > time,
-                Proxy.https == https,
                 Proxy.available == True
             ).order_by(desc(Proxy.verified)).all()
 
     @session_watcher(False)
-    def query_expired(self, time, https, session=None):
+    def query_expired(self, time, session=None):
         return session.query(Proxy).filter(
             Proxy.verified < time,
-            Proxy.https == https,
             Proxy.available == True
         ).all()
 
     @session_watcher(False)
-    def available_count(self, https, session=None):
+    def available_count(self, session=None):
         return session.query(func.count(Proxy.id)).filter(
-            Proxy.https == https,
             Proxy.available == True
         ).scalar()

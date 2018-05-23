@@ -200,7 +200,7 @@ class ProxyController(object):
         """
         delta = timedelta(minutes=self._verify_minutes)
         avail_time = datetime.now() - delta
-        proxies_set = self.worker.query_available(avail_time, self.https, count)
+        proxies_set = self.worker.query_available(avail_time, count)
         if not proxies_set:
             proxies_set = []
         return proxies_set
@@ -209,7 +209,7 @@ class ProxyController(object):
         """
         Get total record in db.
         """
-        return self.worker.available_count(self.https)
+        return self.worker.available_count()
 
     def check_storage_process(self):
         """
@@ -254,7 +254,7 @@ class ProxyController(object):
         """
         delta = timedelta(minutes=self._verify_minutes)
         verify_time = datetime.now() - delta
-        proxies_set = self.worker.query_expired(verify_time, self.https)
+        proxies_set = self.worker.query_expired(verify_time)
         if not proxies_set:
             proxies_set = []
         return proxies_set
