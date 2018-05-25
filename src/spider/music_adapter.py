@@ -2,6 +2,7 @@
 """
 This is an adapter class to convert request content to music instance.
 """
+from __future__ import print_function
 from music import *
 import functools
 
@@ -31,8 +32,8 @@ def adapt_song(content, object_id):
         song.artists = _get_artists(content['artists'])
         # Get album
         song.album = adapt_album(content, content['album']['id'])
-    except KeyError, ex:
-        print ex.message
+    except KeyError as ex:
+        print(ex.message)
     return song
 
 
@@ -44,7 +45,7 @@ def _get_artists(contents):
         adapt_artist({'artist': content}, content['id'], all_size=False, hot_songs=False)
         for content in contents
     ]
-    return tuple(artists_list)
+    return artists_list
 
 
 @convert_str_id
@@ -58,8 +59,8 @@ def adapt_lyric(content, object_id, song=None):
         # uncollected and nolyric
         lyric.lyric = content['lrc']['lyric'] if 'lrc' in content else None
         lyric.tlyric = content['tlyric']['lyric'] if 'tlyric' in content else None
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return lyric
 
 
@@ -74,8 +75,8 @@ def adapt_playlist(content, object_id):
         playlist.creator = adapt_user(content['playlist']['creator'])
         playlist.track_count = content['playlist']['trackCount']
         playlist.tracks = _get_tracks(content['playlist']['tracks'])
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return playlist
 
 
@@ -90,8 +91,8 @@ def adapt_user(content, brief=False):
         if not brief:
             user.gender = content['gender']
             user.signature = content['signature']
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return user
 
 
@@ -112,9 +113,9 @@ def _get_tracks(contents):
             album.name = content['al']['name']
             song.album = album
             tracks.append(song)
-        except KeyError, error:
-            print error.message
-    return tuple(tracks)
+        except KeyError as ex:
+            print(ex.message)
+    return tracks
 
 
 @convert_str_id
@@ -141,8 +142,8 @@ def adapt_artist(content, object_id, all_size=True, hot_songs=True):
                 adapt_song(content, content['id'])
                 for content in content['hotSongs']
             ]
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return artist
 
 
@@ -165,8 +166,8 @@ def adapt_album(content, object_id):
                 adapt_song(song, song['id'])
                 for song in content['album']['songs']
             ]
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return album
 
 
@@ -186,8 +187,8 @@ def adapt_comment_set(content, object_id):
         if 'hotComments' in content:
             comment_set.more_hot = content['moreHot']
             comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return comment_set
 
 
@@ -204,8 +205,8 @@ def adapt_hot_comment_set(content, object_id):
         hot_comment_set.total = content['total']
         hot_comment_set.has_more = content['hasMore']
         hot_comment_set.hot_comments = adapt_comments(content['hotComments'], object_id)
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return hot_comment_set
 
 
@@ -234,8 +235,8 @@ def adapt_comment(content, object_id, song_id=None):
         comment.liked_count = content['likedCount']
         comment.time = content['time']
         comment.user = adapt_user(content['user'], brief=True)
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return comment
 
 
@@ -252,6 +253,6 @@ def adapt_replied_comment(content):
         comment.be_replied = None
         comment.content = content[0]['content']
         comment.user = adapt_user(content[0]['user'], brief=True)
-    except KeyError, error:
-        print error.message
+    except KeyError as ex:
+        print(ex.message)
     return comment

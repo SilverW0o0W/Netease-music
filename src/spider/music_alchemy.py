@@ -1,6 +1,5 @@
 # coding=utf-8
 from sqlalchemy import Column, String, Integer, Boolean, BIGINT
-# from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()

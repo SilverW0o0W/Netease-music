@@ -40,19 +40,17 @@ class ProcessHandler(object):
         """
         Send close message to log process.
         """
-        LOCK.acquire()
-        if self.is_run:
-            self.pipe[1].send(StopSignal(message))
-        self.is_run = False
-        LOCK.release()
+        with LOCK:
+            if self.is_run:
+                self.pipe[1].send(StopSignal(message))
+            self.is_run = False
 
     def send_message(self, message):
         """
         Send message to pipe
         """
-        if not self.is_run or not message:
+        if not self.is_run or message is None:
             return
-        LOCK.acquire()
-        if self.is_run:
-            self.pipe[1].send(message)
-        LOCK.release()
+        with LOCK:
+            if self.is_run:
+                self.pipe[1].send(message)
