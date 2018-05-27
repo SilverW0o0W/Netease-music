@@ -21,7 +21,7 @@ Lock = threading.Lock()
 def check_writer(func):
     def wrapper(self, *args, **kwargs):
         if not self.writer:
-            raise NameError('CommentWriter not initialize.')
+            raise ValueError('CommentWriter not initialize.')
         return func(self, *args, **kwargs)
 
     return wrapper
