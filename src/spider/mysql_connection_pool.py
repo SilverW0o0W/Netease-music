@@ -3,6 +3,7 @@
 This file work for controlling mysql connection pool.
 """
 
+import traceback
 from Queue import Queue
 from datetime import datetime, timedelta
 
@@ -73,29 +74,25 @@ class ConnectionPool(object):
         Get connection.
         """
         connection = None
-        LOCK.acquire()
-        if self.pool_dispose:
-            raise Exception('Pool close.')
-        try:
+        with LOCK:
+            if self.pool_dispose:
+                raise Exception('Pool close.')
             connection = self.queue_available.get(timeout=timeout)
             self.connection_busy += 1
-        finally:
-            LOCK.release()
         return connection
 
     def close(self):
         """
         Close available connection.
         """
-        LOCK.acquire()
-        self.pool_dispose = True
-        while self.queue_available.qsize() > 0:
-            try:
-                controller = self.queue_available.get()
-                controller.real_close()
-            except BaseException, exception:
-                print exception.message
-        LOCK.release()
+        with LOCK:
+            self.pool_dispose = True
+            while self.queue_available.qsize() > 0:
+                try:
+                    controller = self.queue_available.get()
+                    controller.real_close()
+                except Exception:
+                    print(traceback.format_exc())
 
 
 class PoolController(MysqlController):

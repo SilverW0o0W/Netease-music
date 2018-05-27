@@ -3,6 +3,7 @@
 This is for controlling sqlite
 """
 
+import traceback
 import os
 import sqlite3
 
@@ -31,8 +32,8 @@ class SqliteController(object):
                 # Create db table
                 return self.write(sql_create_table)
             return True
-        except StandardError, error:
-            print error.message
+        except Exception:
+            print(traceback.format_exc())
             return False
 
     def connect(self, check_thread=True):
@@ -68,8 +69,8 @@ class SqliteController(object):
                 result = cursor.execute(sql, params_list)
             connect.commit()
             return result
-        except StandardError, error:
-            print error.message
+        except Exception:
+            print(traceback.format_exc())
             return None
         finally:
             if cursor is not None:
@@ -94,12 +95,13 @@ class SqliteController(object):
                 try:
                     result = cursor.execute(sql, params)
                     row_num += result.rowcount
-                except StandardError:
-                    continue
-            connect.commit()
+                except Exception:
+                    print(traceback.format_exc())
+                else:
+                    connect.commit()
             return row_num
-        except StandardError, error:
-            print error.message
+        except Exception:
+            print(traceback.format_exc())
             return None
         finally:
             if cursor is not None:
@@ -125,8 +127,8 @@ class SqliteController(object):
                 cursor.execute(sql, params_list)
             result_set = cursor.fetchall()
             return result_set
-        except StandardError, error:
-            print error.message
+        except Exception:
+            print(traceback.format_exc())
             return None
         finally:
             if cursor is not None:

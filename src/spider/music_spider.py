@@ -2,10 +2,10 @@
 """
 Request music api
 """
-import traceback
 from __future__ import print_function
-import encrypto
+import traceback
 import requests
+from . import encrypto
 
 
 class MusicSpider(object):
