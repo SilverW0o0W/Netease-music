@@ -3,3 +3,5 @@ pip install future
 pip install pycryptodome
 pip install BeautifulSoup4
 pip install requests
+pip install threadpool
+pip install sqlalchemy

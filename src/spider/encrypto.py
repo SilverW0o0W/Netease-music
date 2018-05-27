@@ -94,7 +94,7 @@ def generate_data(text):
     """
     Generate data
     """
-    text = json.dumps(text)
+    text = json.dumps(text).encode('utf-8')
     keys = create_secret_key()
     enc_text = aes(aes(text, NONCE), keys[0])
     data = {

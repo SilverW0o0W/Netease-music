@@ -4,7 +4,7 @@ This is an adapter class to convert request content to music instance.
 """
 from __future__ import print_function
 import traceback
-from music import *
+from .music import *
 import functools
 
 
