@@ -3,9 +3,10 @@
 For write comment detail to DB
 """
 
+import traceback
 from multiprocessing import Process
-from process_handler import ProcessHandler
-import music_alchemy as alchemy
+from .process_handler import ProcessHandler
+from . import music_alchemy as alchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -39,8 +40,8 @@ class CommentWriter(ProcessHandler):
                     engine.dispose()
                     break
                 self.add_record(DBSession, message)
-        except BaseException, ex:
-            self.logger.error("Writing process error. Reason: {0}.", ex.message)
+        except BaseException:
+            self.logger.error("Writing process error. Reason: {0}.", traceback.format_exc())
         self.logger.info('Writer dispose.')
 
     def add_record(self, DBSession, comments):
@@ -65,8 +66,8 @@ class CommentWriter(ProcessHandler):
                     replied_content=comment.be_replied.content if comment.be_replied else None
                 )
                 session.merge(sql_comment)
-            except Exception, ex:
-                self.logger.warning(ex.message)
+            except Exception:
+                self.logger.warning(traceback.format_exc())
             else:
                 session.commit()
         session.close()

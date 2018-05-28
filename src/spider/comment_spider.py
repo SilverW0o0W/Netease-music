@@ -4,15 +4,16 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
+import traceback
 import time
 import threading
 import threadpool
 
 import music_adapter as adapter
-from encrypto import generate_data
+from .encrypto import generate_data
 from logger.logger import Logger
-from music_spider import MusicSpider
-from comment_writer import CommentWriter
+from .music_spider import MusicSpider
+from .comment_writer import CommentWriter
 from proxy.proxy_controller import ProxyController
 
 Lock = threading.Lock()
@@ -41,7 +42,8 @@ class CommentSpider(object):
         self.logger = Logger(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
-        self.proxy = ProxyController(https=False) if use_proxy else None
+        proxy_logger = Logger(name='proxy.log')
+        self.proxy = ProxyController(proxy_logger, False) if use_proxy else None
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
     @staticmethod
@@ -86,8 +88,6 @@ class CommentSpider(object):
                 proxy = self.proxy.get_proxy()
                 proxies = {'http': proxy.ip + ':' + proxy.port}
             content = self.spider.send_request('POST', url, data=data, proxies=proxies)
-        if content is None:
-            return None
         time.sleep(0.5)
         if hot:
             return adapter.adapt_hot_comment_set(content, song_id)
@@ -98,8 +98,8 @@ class CommentSpider(object):
         with Lock:
             try:
                 index, data = next(data_generator)
-            except StopIteration as stop_ex:
-                self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
+            except StopIteration:
+                self.logger.warning('Generator has stopped. Reason: {0}', traceback.format_exc())
                 return
         return self.request_comment_set(song_id, data, hot=hot), index
 
