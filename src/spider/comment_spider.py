@@ -4,6 +4,7 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
+from __future__ import absolute_import
 import traceback
 import time
 import threading
@@ -11,10 +12,10 @@ import threadpool
 
 from . import music_adapter as adapter
 from .encrypto import generate_data
-from logger.logger import Logger
+from .logger.logger import Logger
 from .music_spider import MusicSpider
 from .comment_writer import CommentWriter
-from proxy.proxy_controller import ProxyController
+from .proxy.proxy_controller import ProxyController
 
 Lock = threading.Lock()
 
