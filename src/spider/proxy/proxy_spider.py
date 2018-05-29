@@ -3,11 +3,12 @@
 This is for crawling proxy ip from ip website.
 """
 
+import traceback
 from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
-from proxy import Proxy
+from .proxy import Proxy
 
 
 class ProxySpider(object):
@@ -57,17 +58,17 @@ class ProxySpider(object):
             proxies = self.convert_proxies(ips)
             self.logger.info('Crawl ip count: %s' % len(proxies))
             return proxies
-        except StandardError, error:
-            self.logger.warn(error.message)
+        except Exception:
+            self.logger.warn(traceback.format_exc())
 
     @classmethod
     def convert_proxies(cls, ips):
-        return filter(None, [cls.convert_proxy(ip) for ip in ips[1:]])
+        return list(filter(None, [cls.convert_proxy(ip) for ip in ips[1:]]))
 
     @staticmethod
     def convert_proxy(ip):
         tds = ip.findAll("td")
-        if not tds[4].contents[0] == '高匿':
+        if not tds[4].contents[0] == u'高匿':
             return
         is_https = tds[5].contents[0] == 'HTTPS'
         return Proxy(tds[1].contents[0], tds[2].contents[0], is_https)

@@ -4,16 +4,18 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
+from __future__ import absolute_import
+import traceback
 import time
 import threading
 import threadpool
 
-import music_adapter as adapter
-from encrypto import generate_data
-from logging_controller import LoggingController
-from music_spider import MusicSpider
-from comment_writer import CommentWriter
-from proxy.proxy_controller import ProxyController
+from . import music_adapter as adapter
+from .encrypto import generate_data
+from .logger.logger import Logger
+from .music_spider import MusicSpider
+from .comment_writer import CommentWriter
+from .proxy.proxy_controller import ProxyController
 
 Lock = threading.Lock()
 
@@ -21,7 +23,7 @@ Lock = threading.Lock()
 def check_writer(func):
     def wrapper(self, *args, **kwargs):
         if not self.writer:
-            raise NameError('CommentWriter not initialize.')
+            raise ValueError('CommentWriter not initialize.')
         return func(self, *args, **kwargs)
 
     return wrapper
@@ -38,10 +40,11 @@ class CommentSpider(object):
     _request_thread_limit = 30
 
     def __init__(self, use_proxy=False, con_string=None):
-        self.logger = LoggingController(name='comment.log')
+        self.logger = Logger(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
-        self.proxy = ProxyController(https=False) if use_proxy else None
+        proxy_logger = Logger(name='proxy.log')
+        self.proxy = ProxyController(proxy_logger, False) if use_proxy else None
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
     @staticmethod
@@ -86,8 +89,6 @@ class CommentSpider(object):
                 proxy = self.proxy.get_proxy()
                 proxies = {'http': proxy.ip + ':' + proxy.port}
             content = self.spider.send_request('POST', url, data=data, proxies=proxies)
-        if content is None:
-            return None
         time.sleep(0.5)
         if hot:
             return adapter.adapt_hot_comment_set(content, song_id)
@@ -98,8 +99,8 @@ class CommentSpider(object):
         with Lock:
             try:
                 index, data = next(data_generator)
-            except StopIteration as stop_ex:
-                self.logger.warning('Generator has stopped. Reason: {0}', stop_ex.message)
+            except StopIteration:
+                self.logger.warning('Generator has stopped. Reason: {0}', traceback.format_exc())
                 return
         return self.request_comment_set(song_id, data, hot=hot), index
 

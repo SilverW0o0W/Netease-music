@@ -1,42 +1,69 @@
+#!/usr/bin/env python
 # coding=utf-8
-"""
-This is the major encrypto algorithm
-"""
-
-import os
+from __future__ import (
+    unicode_literals, division, absolute_import
+)
 import base64
+import binascii
+import hashlib
 import json
-from Crypto.Cipher import AES
+import os
 import threading
 
-Lock = threading.Lock()
+from Cryptodome.Cipher import AES
+from future.builtins import (int, pow)
 
-# https://github.com/darknessomi/musicbox/wiki
+LOCK = threading.Lock()
 
-modulus = '00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7'
-nonce = '0CoJUm6Qyw8W8jud'
-pub_key = '010001'
+MODULUS = ('00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7'
+           'b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280'
+           '104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932'
+           '575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b'
+           '3ece0462db0a22b8e7')
+PUBKEY = '010001'
+NONCE = b'0CoJUm6Qyw8W8jud'
 
 
-def aes_encrypt(text, sec_key):
-    """
-    AES encrypt
-    """
+# Base on https://github.com/yanunon/NeteaseCloudMusic
+def encrypted_id(id):
+    magic = bytearray('3go8&$8*3*3h0k(2)2', 'u8')
+    song_id = bytearray(id, 'u8')
+    magic_len = len(magic)
+    for i, sid in enumerate(song_id):
+        song_id[i] = sid ^ magic[i % magic_len]
+    m = hashlib.md5(song_id)
+    result = m.digest()
+    result = base64.b64encode(result).replace(b'/', b'_').replace(b'+', b'-')
+    return result.decode('utf-8')
+
+
+# Base on https://github.com/stkevintan/nw_musicbox
+def encrypted_request(text):
+    # type: (str) -> dict
+    data = json.dumps(text).encode('utf-8')
+    secret = create_key(16)
+    params = aes(aes(data, NONCE), secret)
+    encseckey = rsa(secret, PUBKEY, MODULUS)
+    return {'params': params, 'encSecKey': encseckey}
+
+
+def aes(text, key):
     pad = 16 - len(text) % 16
-    text = text + pad * chr(pad)
-    encryptor = AES.new(sec_key, 2, '0102030405060708')
+    text = text + bytearray([pad] * pad)
+    encryptor = AES.new(key, 2, b'0102030405060708')
     ciphertext = encryptor.encrypt(text)
-    ciphertext = base64.b64encode(ciphertext)
-    return ciphertext
+    return base64.b64encode(ciphertext)
 
 
-def rsa_encrypt(text, pub_key, modulus):
-    """
-    RSA encrypt
-    """
+def rsa(text, pubkey, modulus):
     text = text[::-1]
-    result = int(text.encode('hex'), 16) ** int(pub_key, 16) % int(modulus, 16)
-    return format(result, 'x').zfill(256)
+    rs = pow(int(binascii.hexlify(text), 16),
+             int(pubkey, 16), int(modulus, 16))
+    return format(rs, 'x').zfill(256)
+
+
+def create_key(size):
+    return binascii.hexlify(os.urandom(size))[:16]
 
 
 _keys = None
@@ -44,7 +71,7 @@ _keys = None
 
 def lock(func):
     def wrapper(*args, **kwargs):
-        with Lock:
+        with LOCK:
             return func(*args, **kwargs)
 
     return wrapper
@@ -57,8 +84,8 @@ def create_secret_key(refresh=False):
     """
     global _keys
     if not _keys or refresh:
-        secret_key = ''.join(map(lambda xx: (hex(ord(xx))[2:]), os.urandom(16)))[0:16]
-        enc_sec_key = rsa_encrypt(secret_key, pub_key, modulus)
+        secret_key = create_key(16)
+        enc_sec_key = rsa(secret_key, PUBKEY, MODULUS)
         _keys = (secret_key, enc_sec_key)
     return _keys
 
@@ -67,9 +94,9 @@ def generate_data(text):
     """
     Generate data
     """
-    text = json.dumps(text)
+    text = json.dumps(text).encode('utf-8')
     keys = create_secret_key()
-    enc_text = aes_encrypt(aes_encrypt(text, nonce), keys[0])
+    enc_text = aes(aes(text, NONCE), keys[0])
     data = {
         'params': enc_text,
         'encSecKey': keys[1]

@@ -3,6 +3,7 @@
 This file work for controlling mysql
 """
 
+import traceback
 from datetime import datetime
 import mysql.connector as connector
 
@@ -57,9 +58,9 @@ class MysqlController(object):
         try:
             cursor = self.connection.cursor()
             cursor.execute(sql) if not params else cursor.execute(sql, params)
-        except connector.DatabaseError, ex:
+        except connector.DatabaseError as ex:
             self.connection.rollback()
-            print ex.msg
+            print(traceback.format_exc())
             raise ex
         else:
             self.connection.commit()

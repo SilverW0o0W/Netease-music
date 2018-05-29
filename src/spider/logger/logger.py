@@ -3,12 +3,10 @@
 This file for controlling multi-process logging 
 """
 
-import threading
-from multiprocessing import Process
-
 import logging
 import logging.config
-from process_handler import ProcessHandler
+from multiprocessing import Process
+from .process_handler import ProcessHandler
 
 CRITICAL = 50
 FATAL = CRITICAL
@@ -20,7 +18,7 @@ DEBUG = 10
 NOTSET = 0
 
 
-class LoggingController(ProcessHandler):
+class Logger(ProcessHandler):
     """
     Wrapper logging instance.
     """

@@ -2,8 +2,11 @@
 """
 Request music api
 """
-import encrypto
+from __future__ import print_function
+import traceback
 import requests
+from urllib3.exceptions import HTTPError
+from . import encrypto
 
 
 class MusicSpider(object):
@@ -41,17 +44,12 @@ class MusicSpider(object):
                     timeout=self.timeout
                 )
                 content = response.json() if json else response.content
-            except requests.RequestException, ex:
-                print proxies,
-                print ex.message
+            except (requests.RequestException, HTTPError, ValueError) as ex:
+                print(proxies, end=''),
+                print(ex)
                 content = None
-            except ValueError, ex:
-                print proxies,
-                print ex.message
-                content = None
-            except BaseException, ex:
-                print proxies,
-                print ex.message
+            except Exception:
+                print(traceback.format_exc())
         return content
 
     # url = 'http://music.163.com/api/song/detail?ids=[{}]'

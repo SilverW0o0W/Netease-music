@@ -2,10 +2,12 @@
 """
 Download song playlist album picture.
 """
+
+import os
+import requests
+
 from spider.music_spider import MusicSpider
 import spider.music_utils as utils
-import requests
-import os
 
 
 class Avatar(object):
