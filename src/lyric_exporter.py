@@ -2,6 +2,8 @@
 """
 Download lyric
 """
+
+import traceback
 import os
 import sys
 from spider import music_utils as utils
@@ -57,11 +59,8 @@ class LyricExporter(object):
             if os.path.isdir(export_path):
                 full_name = export_path + file_name
             else:
-                try:
-                    os.makedirs(export_path)
-                    full_name = export_path + file_name
-                except OSError, e:
-                    print e.message
+                os.makedirs(export_path)
+                full_name = export_path + file_name
         return file_name, full_name
 
     def create_file(self, lyric, export_path=None):
@@ -117,8 +116,8 @@ class LyricExporter(object):
                 file_name = self.export(song.song_id, song=song, export_dir=export_dir)
                 if file_name:
                     path_dict[song.song_id] = file_name
-            except BaseException, ex:
-                print ex.message
+            except Exception:
+                print(traceback.format_exc())
         return path_dict
 
     def export_playlist(self, playlist_id, export_dir=None):
