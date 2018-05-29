@@ -56,7 +56,7 @@ class ProxyWorker(object):
 
     def session(self):
         if not self.engine:
-            self.engine = create_engine(self.con_string)
+            self.engine = create_engine(self.con_string, connect_args={'check_same_thread': False})
             self.Session = sessionmaker(bind=self.engine)
         return self.Session()
 

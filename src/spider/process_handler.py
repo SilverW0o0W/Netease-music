@@ -20,7 +20,7 @@ class StopSignal(object):
 
 class ProcessHandler(object):
     """
-    For controling process start and close.
+    For controlling process start and close.
     """
 
     def __init__(self, name=None, stop_signal=False):
@@ -29,7 +29,8 @@ class ProcessHandler(object):
         self.pipe = Pipe(duplex=False)
         self.is_run = True
 
-    def receive_stop(self, message):
+    @staticmethod
+    def receive_stop(message):
         """
         Check message is stop signal
         :return: message

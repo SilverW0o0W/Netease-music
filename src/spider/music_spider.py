@@ -5,6 +5,7 @@ Request music api
 from __future__ import print_function
 import traceback
 import requests
+from urllib3.exceptions import HTTPError
 from . import encrypto
 
 
@@ -43,9 +44,9 @@ class MusicSpider(object):
                     timeout=self.timeout
                 )
                 content = response.json() if json else response.content
-            except (requests.RequestException, ValueError) as ex:
+            except (requests.RequestException, HTTPError, ValueError) as ex:
                 print(proxies, end=''),
-                print(ex.message)
+                print(ex)
                 content = None
             except Exception:
                 print(traceback.format_exc())

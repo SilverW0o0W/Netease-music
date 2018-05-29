@@ -40,7 +40,7 @@ class CommentWriter(ProcessHandler):
                     engine.dispose()
                     break
                 self.add_record(DBSession, message)
-        except BaseException:
+        except Exception:
             self.logger.error("Writing process error. Reason: {0}.", traceback.format_exc())
         self.logger.info('Writer dispose.')
 
