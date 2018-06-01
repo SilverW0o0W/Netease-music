@@ -128,22 +128,15 @@ class LyricExporter(object):
         playlist = adapter.adapt_playlist(playlist_id, content)
         return self.export_songs(playlist.tracks, export_dir=export_dir)
 
-    def export_url(self, url, playlist=False, export_dir=None):
+    def export_url(self, url, export_dir=None):
         """
         Export file(s) from input url.
         """
-        url_id = utils.match_playlist_id(url)
-        if not url_id:
-            if playlist:
-                raise ValueError('ID not found')
-            else:
-                url_id = utils.match_song_id(url)
-                is_playlist = False
-                if not url_id:
-                    raise ValueError('ID not found')
+        url_dict = utils.match_url(url)
+        url_type = url_dict['type']
+        if url_type & 0b00100 == 0b00100:
+            return self.export_playlist(url_dict['id'], export_dir=export_dir)
+        elif url_type & 0b00010:
+            return self.export(url_dict['id'], export_dir=export_dir)
         else:
-            is_playlist = True
-        if is_playlist:
-            return self.export_playlist(url_id, export_dir)
-        else:
-            return self.export(url_id, export_dir)
+            raise ValueError('ID not found')

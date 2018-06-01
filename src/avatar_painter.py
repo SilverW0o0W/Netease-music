@@ -48,13 +48,14 @@ class AvatarPainter(object):
             pic_file.write(requests.get(avatar.url).content)
 
     def paint(self, url):
-        url_type = utils.match_type(url)
+        url_dict = utils.match_url(url)
+        url_type = url_dict['type']
         if url_type & 0b00100 == 0b00100:
-            avatar = self.playlist(utils.match_playlist_id(url))
+            avatar = self.playlist(url_dict['id'])
         elif url_type & 0b01000 == 0b01000:
-            avatar = self.album(utils.match_album_id(url))
+            avatar = self.album(url_dict['id'])
         elif url_type & 0b10000 == 0b10000:
-            avatar = self.artist(utils.match_artist_id(url))
+            avatar = self.artist(url_dict['id'])
         else:
             return
         self.download(avatar)
