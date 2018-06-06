@@ -6,7 +6,7 @@ This file for controlling multi-process logging
 import logging
 import logging.config
 from multiprocessing import Process
-from .process_handler import ProcessHandler
+from .process_handler import ProcessHandler, process_checker
 
 CRITICAL = 50
 FATAL = CRITICAL
@@ -28,9 +28,10 @@ class Logger(ProcessHandler):
         self.name = name
         self.config = config
         log_process = Process(target=self.run_logger,
-                              args=(self.pipe[0], self.name, self.config,))
+                              args=(self.sub_pipe, self.name, self.config,))
         log_process.start()
 
+    @process_checker
     def run_logger(self, pipe, name, config):
         if config:
             logging.config.dictConfig(config)
@@ -44,7 +45,7 @@ class Logger(ProcessHandler):
         while True:
             message = pipe.recv()
             if self.receive_stop(message):
-                self.info('Logger receive stop.')
+                logger.info('Logger receive stop.')
                 break
             logger.log(message[0], message[1])
 
@@ -101,8 +102,6 @@ class Logger(ProcessHandler):
         """
         Logger level
         """
-        if not self.is_run:
-            return
         msg = msg.format(*args, **kwargs)
         message = [level, msg]
-        self.send_message(message)
+        self.send(message)
