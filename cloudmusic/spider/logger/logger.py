@@ -44,6 +44,7 @@ class Logger(ProcessHandler):
         while True:
             message = pipe.recv()
             if self.receive_stop(message):
+                self.info('Logger receive stop.')
                 break
             logger.log(message[0], message[1])
 

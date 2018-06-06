@@ -5,7 +5,7 @@ For write comment detail to DB
 
 import traceback
 from multiprocessing import Process
-from .process_handler import ProcessHandler
+from .process_handler import ProcessHandler, process_checker
 from . import music_alchemy as alchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -23,13 +23,14 @@ class CommentWriter(ProcessHandler):
         ProcessHandler.__init__(self)
         self.logger = logger
         self.con_string = con_string
-        writer_process = Process(target=self.process, args=(self.pipe[0],))
+        writer_process = Process(target=self.process, args=(self.sub_pipe,))
         writer_process.start()
         self.logger.info("Comment writer start. PID: {0}.", writer_process.pid)
 
+    @process_checker
     def process(self, pipe):
-        self.logger.info('Writing process start')
         try:
+            self.logger.info('Writing process start')
             engine = create_engine(self.con_string)
             alchemy.Base.metadata.create_all(engine)
             DBSession = sessionmaker(bind=engine)
@@ -44,14 +45,14 @@ class CommentWriter(ProcessHandler):
             self.logger.error("Writing process error. Reason: {0}.", traceback.format_exc())
         self.logger.info('Writer dispose.')
 
-    def add_record(self, DBSession, comments):
+    def add_record(self, session, comments):
         """
         Write comment list to db
-        :param DBSession: session
+        :param session: session
         :param comments:a list of comments
         :return:
         """
-        session = DBSession()
+        session = session()
         for comment in comments:
             try:
                 sql_comment = alchemy.Comment(

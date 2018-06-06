@@ -43,7 +43,7 @@ class CommentSpider(object):
         self.logger = Logger(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
-        proxy_logger = Logger(name='proxy.log')
+        proxy_logger = Logger(name='proxy.log') if use_proxy else None
         self.proxy = ProxyController(proxy_logger, False) if use_proxy else None
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
@@ -164,7 +164,7 @@ class CommentSpider(object):
                 self.logger.debug("Request comment start. Index: {0}.", index)
                 comment_set = self.request_comment_set(song_id, data, hot=hot)
                 self.logger.debug("Request comment success. Index: {0}.", index)
-                self.writer.send_message(comment_set.comments)
+                self.writer.send(comment_set.comments)
                 self.logger.debug("Send comment done. Index: {0}.", index)
         self.logger.info('Write comment done. Song id: {}', song_id)
 
@@ -175,7 +175,7 @@ class CommentSpider(object):
         results = self.request_comment_set_thread(song_id, data_generator, hot=hot)
         if results:
             comment, index = results
-            self.writer.send_message(comment.comments)
+            self.writer.send(comment.comments)
             self.logger.debug('Write comment {} done.', index)
 
     def dispose(self):

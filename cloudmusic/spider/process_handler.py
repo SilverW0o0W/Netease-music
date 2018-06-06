@@ -5,6 +5,7 @@ For process control
 
 import threading
 from multiprocessing import Pipe
+import functools
 
 LOCK = threading.Lock()
 
@@ -18,6 +19,16 @@ class StopSignal(object):
         self.message = message
 
 
+def process_checker(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        pipe = args[0]
+        func(self, *args, **kwargs)
+        pipe.send(StopSignal('Stop'))
+
+    return wrapper
+
+
 class ProcessHandler(object):
     """
     For controlling process start and close.
@@ -26,8 +37,8 @@ class ProcessHandler(object):
     def __init__(self, name=None, stop_signal=False):
         self.name = name
         self.stop_signal = stop_signal and not name
-        self.pipe = Pipe(duplex=False)
-        self.is_run = True
+        self.sub_pipe, self.main_pipe = Pipe()
+        self.allow_sending = True
 
     @staticmethod
     def receive_stop(message):
@@ -42,16 +53,23 @@ class ProcessHandler(object):
         Send close message to log process.
         """
         with LOCK:
-            if self.is_run:
-                self.pipe[1].send(StopSignal(message))
-            self.is_run = False
+            if self.allow_sending:
+                self.main_pipe.send(StopSignal(message))
+            self.allow_sending = False
+        self.join()
 
-    def send_message(self, message):
+    def send(self, message):
         """
         Send message to pipe
         """
-        if not self.is_run or message is None:
+        if not self.allow_sending or message is None:
             return
         with LOCK:
-            if self.is_run:
-                self.pipe[1].send(message)
+            if self.allow_sending:
+                self.main_pipe.send(message)
+
+    def join(self):
+        while True:
+            message = self.main_pipe.recv()
+            if self.receive_stop(message):
+                break
