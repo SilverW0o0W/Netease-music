@@ -8,7 +8,7 @@ from datetime import datetime
 Base = declarative_base()
 
 
-class Proxy(Base):
+class ProxyBase(Base):
     __tablename__ = 'proxies'
     id = Column(Integer, primary_key=True)
     unique_id = Column(String(20), unique=True)
@@ -47,7 +47,7 @@ def session_watcher(commit):
     return _session_watcher
 
 
-class ProxyWorker(object):
+class DBWorker(object):
     def __init__(self, con_string):
         self.con_string = con_string
         self.engine = None
@@ -73,7 +73,7 @@ class ProxyWorker(object):
                 db_proxy.available = proxy.available
                 db_proxy.verified = proxy.verified
             else:
-                alchemy_proxy = Proxy(
+                alchemy_proxy = ProxyBase(
                     id=proxy.id,
                     unique_id=proxy.unique_id,
                     ip=proxy.ip,
@@ -86,35 +86,35 @@ class ProxyWorker(object):
 
     @session_watcher(False)
     def query(self, unique_id, session=None):
-        return session.query(Proxy).filter_by(unique_id=unique_id).one_or_none()
+        return session.query(ProxyBase).filter_by(unique_id=unique_id).one_or_none()
 
     @session_watcher(True)
     def delete(self, id, session=None):
-        proxy = session.query(Proxy).get(id)
-        session.delete(proxy)
+        proxy = session.query(ProxyBase).get(id)
+        return session.delete(proxy)
 
     @session_watcher(False)
     def query_available(self, time, count=None, session=None):
         if count:
-            return session.query(Proxy).filter(
-                Proxy.verified > time,
-                Proxy.available == True
-            ).order_by(desc(Proxy.verified)).limit(count)
+            return session.query(ProxyBase).filter(
+                ProxyBase.verified > time,
+                ProxyBase.available == True
+            ).order_by(desc(ProxyBase.verified)).limit(count)
         else:
-            return session.query(Proxy).filter(
-                Proxy.verified > time,
-                Proxy.available == True
-            ).order_by(desc(Proxy.verified)).all()
+            return session.query(ProxyBase).filter(
+                ProxyBase.verified > time,
+                ProxyBase.available == True
+            ).order_by(desc(ProxyBase.verified)).all()
 
     @session_watcher(False)
     def query_expired(self, time, session=None):
-        return session.query(Proxy).filter(
-            Proxy.verified < time,
-            Proxy.available == True
+        return session.query(ProxyBase).filter(
+            ProxyBase.verified < time,
+            ProxyBase.available == True
         ).all()
 
     @session_watcher(False)
     def available_count(self, session=None):
-        return session.query(func.count(Proxy.id)).filter(
-            Proxy.available == True
+        return session.query(func.count(ProxyBase.id)).filter(
+            ProxyBase.available == True
         ).scalar()

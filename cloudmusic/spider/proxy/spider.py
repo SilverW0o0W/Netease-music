@@ -11,13 +11,12 @@ from bs4 import BeautifulSoup
 from .proxy import Proxy
 
 
-class ProxySpider(object):
+class Spider(object):
     """
     This is the class for crawling ip from proxy site
     """
     _user_agent = 'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0'
-    _header = {}
-    _header['User-Agent'] = _user_agent
+    _header = {'User-Agent': _user_agent}
     _http_url = 'http://www.xicidaili.com/wt/'
     _https_url = 'http://www.xicidaili.com/wn/'
     _anon_url = 'http://www.xicidaili.com/nn/'
@@ -46,8 +45,7 @@ class ProxySpider(object):
         """
         try:
             page = self.get_page()
-            url = self._https_url if https else self._anon_url
-            url += str(page)
+            url = self._anon_url + str(page)
             self.logger.debug('Start to crawl url: %s' % url)
             response = requests.get(url, headers=self._header)
             if response.status_code != 200:
@@ -56,6 +54,7 @@ class ProxySpider(object):
             ip_table = soup.find(id='ip_list')
             ips = ip_table.findAll('tr')
             proxies = self.convert_proxies(ips)
+            proxies = [proxy for proxy in proxies if proxy.https == https] if https else proxies
             self.logger.info('Crawl ip count: %s' % len(proxies))
             return proxies
         except Exception:

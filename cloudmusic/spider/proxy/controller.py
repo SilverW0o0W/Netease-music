@@ -16,15 +16,15 @@ from multiprocessing import Process, Pipe
 import requests
 
 from .proxy import Proxy, ProxySet
-from .proxy_spider import ProxySpider
-from .proxy_alchemy import ProxyWorker
+from .spider import Spider
+from .alchemy import DBWorker
 
 from bs4 import BeautifulSoup
 
 LOCK = threading.Lock()
 
 
-class ProxyController(object):
+class Controller(object):
     """
     This is a class for crawling proxy ip
     """
@@ -32,8 +32,8 @@ class ProxyController(object):
 
     _http_url = 'http://info.cern.ch/'
     _http_title = 'http://info.cern.ch'
-    _https_url = ''
-    _https_title = ''
+    _https_url = 'https://cn.bing.com/'
+    _https_title = u'微软 Bing 搜索 - 国内版'
     _proxy_split = 3
 
     _process_stop_file = 'proxy.stop'
@@ -50,11 +50,10 @@ class ProxyController(object):
     _cache_proxy_set = ProxySet()
 
     def __init__(self, logger, https):
-        # self.logger = Logger(name='proxy.log')
         self.logger = logger
         self.https = https
-        self.proxy_spider = ProxySpider(self.logger)
-        self.worker = ProxyWorker('sqlite:///proxy.db')
+        self.spider = Spider(self.logger)
+        self.worker = DBWorker('sqlite:///proxy.db')
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
 
@@ -72,7 +71,7 @@ class ProxyController(object):
         if not cls._instance:
             with LOCK:
                 if not cls._instance:
-                    cls._instance = super(ProxyController, cls).__new__(cls)
+                    cls._instance = super(Controller, cls).__new__(cls)
         return cls._instance
 
     def check_proxy(self, proxy):
@@ -86,9 +85,12 @@ class ProxyController(object):
         with requests.Session() as session:
             try:
                 session.keep_alive = False
-                response = session.get(url, proxies=proxies, timeout=15)
+                if self.https:
+                    response = session.get(url, proxies=proxies, timeout=30, verify=False)
+                else:
+                    response = session.get(url, proxies=proxies, timeout=15)
                 proxy.available = self.check_response(response, url)
-            except requests.exceptions.RequestException as ex:
+            except requests.exceptions.RequestException:
                 proxy.available = False
         return proxy.available
 
@@ -237,7 +239,7 @@ class ProxyController(object):
         """
         self.logger.info('Crawl proxy start')
         try:
-            proxies = self.proxy_spider.get_proxies(self.https)
+            proxies = self.spider.get_proxies(self.https)
             if self.should_run():
                 self.add_proxies(proxies)
         except Exception:

@@ -15,7 +15,7 @@ from .encrypto import generate_data
 from .logger.logger import Logger
 from .music_spider import MusicSpider
 from .comment_writer import CommentWriter
-from .proxy.proxy_controller import ProxyController
+from .proxy.controller import Controller
 
 Lock = threading.Lock()
 
@@ -43,8 +43,8 @@ class CommentSpider(object):
         self.logger = Logger(name='comment.log')
         self.spider = MusicSpider()
         self.use_proxy = use_proxy
-        proxy_logger = Logger(name='proxy.log') if use_proxy else None
-        self.proxy = ProxyController(proxy_logger, False) if use_proxy else None
+        self.proxy_logger = Logger(name='proxy.log') if use_proxy else None
+        self.proxy = Controller(self.proxy_logger, False) if use_proxy else None
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
     @staticmethod
@@ -186,5 +186,6 @@ class CommentSpider(object):
         self.logger.debug('Dispose proxy.')
         if self.use_proxy:
             self.proxy.dispose()
+            self.proxy_logger.dispose()
         self.logger.info('Dispose spider done.')
         self.logger.dispose()
