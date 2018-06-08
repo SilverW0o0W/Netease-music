@@ -10,7 +10,7 @@ import time
 import threading
 import threadpool
 
-from . import music_adapter as adapter
+from . import adapter as adapter
 from .encrypto import generate_data
 from .logger.logger import Logger
 from .music_spider import MusicSpider

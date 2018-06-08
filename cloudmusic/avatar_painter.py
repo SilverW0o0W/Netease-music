@@ -7,7 +7,7 @@ import os
 import requests
 
 from spider.music_spider import MusicSpider
-import spider.music_utils as utils
+import spider.utils as utils
 
 
 class Avatar(object):

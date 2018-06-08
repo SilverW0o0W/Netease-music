@@ -6,8 +6,8 @@ Download lyric
 import traceback
 import os
 import sys
-from spider import music_utils as utils
-from spider import music_adapter as adapter
+from spider import utils as utils
+from spider import adapter as adapter
 from spider.music_spider import MusicSpider
 
 reload(sys)
