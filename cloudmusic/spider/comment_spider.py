@@ -8,8 +8,6 @@ from gevent import monkey, pool as g_pool
 
 import traceback
 import time
-import threading
-import threadpool
 
 from . import adapter as adapter
 from .encrypto import generate_data
@@ -20,7 +18,6 @@ from .comment_writer import CommentWriter
 from .proxy.controller import Controller
 
 monkey.patch_socket()
-Lock = threading.Lock()
 
 
 def check_writer(func):
@@ -40,7 +37,7 @@ class CommentSpider(object):
     _hot_comment_url = "http://music.163.com/weapi/v1/resource/hotcomments/R_SO_4_{0}/?csrf_token="
 
     _limit = 20
-    _request_thread_limit = 30
+    _pool_size = 20
 
     def __init__(self, use_proxy=False, con_string=None):
         self.logger = Logger(name='comment.log')
@@ -97,15 +94,6 @@ class CommentSpider(object):
         else:
             return adapter.adapt_comment_set(content, song_id)
 
-    def request_comment_set_thread(self, song_id, data_generator, hot=False):
-        with Lock:
-            try:
-                index, data = next(data_generator)
-            except StopIteration:
-                self.logger.warning('Generator has stopped. Reason: {0}', traceback.format_exc())
-                return
-        return self.request_comment_set(song_id, data, hot=hot), index
-
     def get_comment(self, song_id, hot=False):
         """
         Get a song all comment
@@ -116,7 +104,7 @@ class CommentSpider(object):
         comment_dict = {}
         times = 0 if total % self._limit == 0 else 1
         times += total // self._limit
-        pool = g_pool.Pool(size=20)
+        pool = g_pool.Pool(size=self._pool_size)
         for _ in range(times):
             pool.spawn(self.get_wrapper, song_id, data_gen, hot, comment_dict)
         pool.join()
@@ -143,7 +131,7 @@ class CommentSpider(object):
         times = 0 if total % self._limit == 0 else 1
         times += total // self._limit
 
-        pool = g_pool.Pool(size=20)
+        pool = g_pool.Pool(size=self._pool_size)
         for _ in range(times):
             pool.spawn(self.write_wrapper, song_id, data_gen, hot)
         pool.join()
