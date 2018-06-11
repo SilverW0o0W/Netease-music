@@ -8,7 +8,7 @@ import os
 import sys
 from spider import utils as utils
 from spider import adapter as adapter
-from spider.music_spider import MusicSpider
+from spider import api
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -38,12 +38,12 @@ class LyricExporter(object):
         self.export_dir = export_dir
         self.name_format = name_format
         self.lang = lang
-        self.spider = MusicSpider()
 
     def get_export_path(self, song, export_path):
         """
         Concat lyric file name and export dir path.
         """
+        full_name = None
         if not song:
             file_name = str.format(self.extension_name, song.song_id)
         else:
@@ -97,9 +97,9 @@ class LyricExporter(object):
         """
         export_dir = self.export_dir if not export_dir else export_dir
         if not song:
-            song_content = self.spider.request_song(song_id)
+            song_content = api.request_song(song_id)
             song = adapter.adapt_song(song_content, song_id)
-        lyric_content = self.spider.request_lyric(song_id)
+        lyric_content = api.request_lyric(song_id)
         lyric = adapter.adapt_lyric(lyric_content, song_id, song=song)
         return self.create_file(lyric, export_dir)
 
@@ -124,7 +124,7 @@ class LyricExporter(object):
         """
         Export all songs in playlist
         """
-        content = self.spider.request_playlist(playlist_id)
+        content = api.request_playlist(playlist_id)
         playlist = adapter.adapt_playlist(playlist_id, content)
         return self.export_songs(playlist.tracks, export_dir=export_dir)
 
