@@ -78,8 +78,8 @@ class CommentSet(object):
 
     def __init__(self, song_id):
         self.song_id = song_id
-        self.comments = ()
-        self.hot_comments = ()
+        self.comments = []
+        self.hot_comments = []
         self.more = False
         self.more_hot = False
         self.total = -1
@@ -94,7 +94,7 @@ class HotCommentSet(object):
     def __init__(self, song_id):
         self.song_id = song_id
         self.has_more = False
-        self.hot_comments = ()
+        self.hot_comments = []
         self.total = -1
         self.offset = -1
 

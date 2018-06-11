@@ -6,7 +6,7 @@ Download song playlist album picture.
 import os
 import requests
 
-from spider.music_spider import MusicSpider
+from spider import api
 import spider.utils as utils
 
 
@@ -22,21 +22,21 @@ class Avatar(object):
 class AvatarPainter(object):
 
     def __init__(self, path):
-        self.spider = MusicSpider()
+
         self.path = path
 
     def album(self, album_id):
-        content = self.spider.request_album(album_id)
+        content = api.request_album(album_id)
         pic_url = content['album']['picUrl']
         return Avatar(album_id, pic_url, 'album')
 
     def playlist(self, playlist_id):
-        content = self.spider.request_playlist(playlist_id)
+        content = api.request_playlist(playlist_id)
         pic_url = content['playlist']['coverImgUrl']
         return Avatar(playlist_id, pic_url, 'playlist')
 
     def artist(self, artist_id):
-        content = self.spider.request_artist(artist_id)
+        content = api.request_artist(artist_id)
         pic_url = content['artist']['picUrl']
         return Avatar(artist_id, pic_url, 'artist')
 

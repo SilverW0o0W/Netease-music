@@ -4,7 +4,8 @@ Aim:
 Initialize a CommentSpider instance, add call function with a song id. Return SongComment
 """
 
-from __future__ import absolute_import
+from gevent import monkey, pool as g_pool
+
 import traceback
 import time
 import threading
@@ -13,10 +14,12 @@ import threadpool
 from . import adapter as adapter
 from .encrypto import generate_data
 from .logger.logger import Logger
-from .music_spider import MusicSpider
+from . import api
 from .comment_writer import CommentWriter
+
 from .proxy.controller import Controller
 
+monkey.patch_socket()
 Lock = threading.Lock()
 
 
@@ -41,7 +44,6 @@ class CommentSpider(object):
 
     def __init__(self, use_proxy=False, con_string=None):
         self.logger = Logger(name='comment.log')
-        self.spider = MusicSpider()
         self.use_proxy = use_proxy
         self.proxy_logger = Logger(name='proxy.log') if use_proxy else None
         self.proxy = Controller(self.proxy_logger, False) if use_proxy else None
@@ -88,7 +90,7 @@ class CommentSpider(object):
             if self.use_proxy:
                 proxy = self.proxy.get_proxy()
                 proxies = {'http': proxy.ip + ':' + proxy.port}
-            content = self.spider.send_request('POST', url, data=data, proxies=proxies)
+            content = api.send_request('POST', url, data=data, proxies=proxies)
         time.sleep(0.5)
         if hot:
             return adapter.adapt_hot_comment_set(content, song_id)
@@ -104,7 +106,7 @@ class CommentSpider(object):
                 return
         return self.request_comment_set(song_id, data, hot=hot), index
 
-    def get_comment(self, song_id, hot=False, multi_thread=False):
+    def get_comment(self, song_id, hot=False):
         """
         Get a song all comment
         """
@@ -112,71 +114,49 @@ class CommentSpider(object):
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
         comment_dict = {}
-        if multi_thread:
-            times = 0 if total % self._limit == 0 else 1
-            times += total // self._limit
-            param_list = [
-                ((song_id, data_gen, hot, comment_dict,), None)
-                for _ in range(times)
-            ]
-            pool_requests = threadpool.makeRequests(
-                self.get_comment_thread, param_list)
-            pool = threadpool.ThreadPool(self._request_thread_limit)
-            [pool.putRequest(request) for request in pool_requests]
-            pool.wait()
-        else:
-            for index, data in data_gen:
-                comment_dict[index] = self.request_comment_set(song_id, data, hot=hot)
+        times = 0 if total % self._limit == 0 else 1
+        times += total // self._limit
+        pool = g_pool.Pool(size=20)
+        for _ in range(times):
+            pool.spawn(self.get_wrapper, song_id, data_gen, hot, comment_dict)
+        pool.join()
         self.logger.info('Get comment done. Song id: {0}, dict length: {1}.', song_id, len(comment_dict))
         return comment_dict
 
-    def get_comment_thread(self, song_id, data_generator, hot, comment_dict):
+    def get_wrapper(self, song_id, data_generator, hot, comment_dict):
         """
         This is multi-threading request.
         """
-        results = self.request_comment_set_thread(song_id, data_generator, hot=hot)
-        if results:
-            comment_dict[results[1]] = results[0]
-            self.logger.debug('Get comment {} done.', results[1])
+        index, data = next(data_generator)
+        comment = self.request_comment_set(song_id, data, hot=hot)
+        comment_dict[index] = comment
+        self.logger.debug('Get comment {} done.', index)
 
     @check_writer
-    def write_comment(self, song_id, hot=False, multi_thread=False):
+    def write_comment(self, song_id, hot=False):
         """
         Write a song all comment
         """
         total = self.request_comment_set(song_id, self.data(), hot=hot).total
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
-        if multi_thread:
-            times = 0 if total % self._limit == 0 else 1
-            times += total // self._limit
-            param_list = [
-                ((song_id, data_gen, hot,), None)
-                for _ in range(times)
-            ]
-            pool_requests = threadpool.makeRequests(
-                self.write_comment_thread, param_list)
-            pool = threadpool.ThreadPool(self._request_thread_limit)
-            [pool.putRequest(request) for request in pool_requests]
-            pool.wait()
-        else:
-            for index, data in data_gen:
-                self.logger.debug("Request comment start. Index: {0}.", index)
-                comment_set = self.request_comment_set(song_id, data, hot=hot)
-                self.logger.debug("Request comment success. Index: {0}.", index)
-                self.writer.send(comment_set.comments)
-                self.logger.debug("Send comment done. Index: {0}.", index)
+        times = 0 if total % self._limit == 0 else 1
+        times += total // self._limit
+
+        pool = g_pool.Pool(size=20)
+        for _ in range(times):
+            pool.spawn(self.write_wrapper, song_id, data_gen, hot)
+        pool.join()
         self.logger.info('Write comment done. Song id: {}', song_id)
 
-    def write_comment_thread(self, song_id, data_generator, hot):
+    def write_wrapper(self, song_id, data_generator, hot):
         """
         This is multi-threading request.
         """
-        results = self.request_comment_set_thread(song_id, data_generator, hot=hot)
-        if results:
-            comment, index = results
-            self.writer.send(comment.comments)
-            self.logger.debug('Write comment {} done.', index)
+        index, data = next(data_generator)
+        comment = self.request_comment_set(song_id, data, hot=hot)
+        self.writer.send(comment.comments)
+        self.logger.debug('Write comment {} done.', index)
 
     def dispose(self):
         self.logger.info('Dispose spider.')
