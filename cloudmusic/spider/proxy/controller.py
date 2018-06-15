@@ -3,6 +3,7 @@
 This is for controlling proxy ip
 """
 
+
 import os
 import random
 import time
@@ -10,8 +11,8 @@ from datetime import datetime, timedelta
 import traceback
 
 import threading
-import threadpool
 from multiprocessing import Process, Pipe
+from gevent import monkey, pool as g_pool
 
 import requests
 
@@ -21,6 +22,7 @@ from .alchemy import DBWorker
 
 from bs4 import BeautifulSoup
 
+monkey.patch_socket()
 LOCK = threading.Lock()
 
 
@@ -38,12 +40,10 @@ class Controller(object):
 
     _process_stop_file = 'proxy.stop'
 
+    _pool_max = 20
     _crawl_check_seconds = 20
-    _crawl_pool_max = 20
-
     _verify_check_seconds = 180
     _verify_minutes = 3
-    _verify_pool_max = 30
 
     _min_storage = 20
 
@@ -57,12 +57,10 @@ class Controller(object):
         self.clear_stop_file()
         self.pipe = Pipe(duplex=False)
 
-        self.crawl_pool = None
         check_process = Process(target=self.check_storage_process)
         check_process.start()
         self.logger.info("ProxyCheck start. PID: {}.", check_process.pid)
 
-        self.verify_pool = None
         verify_process = Process(target=self.verify_storage_process)
         verify_process.start()
         self.logger.info("ProxyVerify start. PID: {}.", verify_process.pid)
@@ -92,6 +90,8 @@ class Controller(object):
                 proxy.available = self.check_response(response, url)
             except requests.exceptions.RequestException:
                 proxy.available = False
+            except Exception as ex:
+                print(ex)
         return proxy.available
 
     def check_response(self, response, url):
@@ -110,35 +110,16 @@ class Controller(object):
         check_title = self._https_title if self.https else self._http_title
         return title is not None and title.string == check_title
 
-    def add_proxy(self, proxy):
+    def split_pool(self, func, proxies):
         """
         Check proxy available and add into sqlite db.
         """
-        if self.check_proxy(proxy):
-            if self.is_recorded(proxy):
-                return False
-            else:
-                self.worker.merge([proxy, ])
-                return True
+        pool = g_pool.Pool(size=self._pool_max)
+        for i in range(0, len(proxies), 3):
+            pool.spawn(func, proxies[i:i + 3])
+        pool.join()
 
     def add_proxies(self, proxies):
-        """
-        Check proxy available and add into sqlite db.
-        """
-        split_num = self._proxy_split
-        times = len(proxies) // split_num
-        split_list = []
-        for i in range(times + 1):
-            pre = i * split_num
-            last = (i + 1) * split_num if i < times else len(proxies)
-            split_list.append(proxies[pre:last])
-        self.logger.info('Proxy list length: {0}.', len(split_list))
-        pool_requests = threadpool.makeRequests(
-            self.add_proxies_thread, split_list)
-        [self.crawl_pool.putRequest(request) for request in pool_requests]
-        self.crawl_pool.wait()
-
-    def add_proxies_thread(self, proxies):
         """
         Multi-Threading check proxy.
         """
@@ -213,8 +194,6 @@ class Controller(object):
         """
         Check db storage status
         """
-        self.crawl_pool = threadpool.ThreadPool(self._crawl_pool_max)
-
         while self.should_run():
             if self.get_db_count() < self._min_storage:
                 self.crawl_proxy()
@@ -241,7 +220,7 @@ class Controller(object):
         try:
             proxies = self.spider.get_proxies(self.https)
             if self.should_run():
-                self.add_proxies(proxies)
+                self.split_pool(self.add_proxies, proxies)
         except Exception:
             self.logger.warn('Crawl proxy exception. Reason: {0}.', traceback.format_exc())
         self.logger.info('Crawl proxy done')
@@ -261,7 +240,6 @@ class Controller(object):
         """
         Check proxy in db is still available
         """
-        self.verify_pool = threadpool.ThreadPool(self._verify_pool_max)
         while self.should_run():
             self.verify_proxy()
             for i in range(self._verify_check_seconds // 10):
@@ -280,7 +258,7 @@ class Controller(object):
             sql_proxies = self.select_expired_proxies()
             proxies = self.convert_proxies(sql_proxies)
             if self.should_run():
-                self.verify_proxies(proxies)
+                self.split_pool(self.verify_proxies, proxies)
         except Exception:
             self.logger.error('Unknown error occurred. Reason: {}.', traceback.format_exc())
         finally:
@@ -288,22 +266,14 @@ class Controller(object):
 
     def verify_proxies(self, proxies):
         """
-        Check proxy ip list.
-        """
-        pool_requests = threadpool.makeRequests(
-            self.verify_proxy_thread, proxies)
-        [self.verify_pool.putRequest(request) for request in pool_requests]
-        self.verify_pool.wait()
-
-    def verify_proxy_thread(self, proxy):
-        """
         Check single proxy ip and delete unreachable ip.
         """
-        if self.check_proxy(proxy):
-            proxy.verified = datetime.now()
-            self.worker.merge([proxy, ])
-        else:
-            self.worker.delete(proxy.id)
+        for proxy in proxies:
+            if self.check_proxy(proxy):
+                proxy.verified = datetime.now()
+                self.worker.merge([proxy, ])
+            else:
+                self.worker.delete(proxy.id)
 
     def clear_stop_file(self):
         """
