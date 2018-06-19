@@ -4,9 +4,14 @@ from redis import ConnectionPool, StrictRedis
 
 class Worker(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, url):
+        self.url = url
+        self.pool = ConnectionPool.from_url(url)
 
-    def connect(self, url):
-        pool = ConnectionPool.from_url(url)
-        redis = StrictRedis(connection_pool=pool)
+    def connect(self):
+        return StrictRedis(connection_pool=self.pool)
+
+    def reconnect(self):
+        self.pool.disconnect()
+        self.pool = ConnectionPool.from_url(self.url)
+        return self.connect()

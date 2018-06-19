@@ -10,7 +10,8 @@ class Job(object):
 class SubJob(object):
     _str = '{0};{1}'
 
-    def __init__(self, job_type, args=[]):
+    def __init__(self, sub_job_id, job_type, args=[]):
+        self.sub_job_id = sub_job_id
         self.job_type = job_type
         self.args = args
 
@@ -19,7 +20,7 @@ class SubJob(object):
         self._str.format(self.job_type, params)
 
     @staticmethod
-    def init(string):
+    def init(sub_job_id, string):
         job_type, params = string.split(';')
         args = params.split(',')
-        return SubJob(job_type, args=args)
+        return SubJob(sub_job_id, job_type, args=args)
