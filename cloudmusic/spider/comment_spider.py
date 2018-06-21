@@ -6,16 +6,15 @@ Initialize a CommentSpider instance, add call function with a song id. Return So
 
 from gevent import monkey, pool as g_pool
 
-import traceback
 import time
 
 from . import adapter as adapter
 from .encrypto import generate_data
-from .logger.logger import Logger
+from cloudmusic.common.logger.logger import Logger
 from . import api
 from .comment_writer import CommentWriter
 
-from .proxy.controller import Controller
+from cloudmusic.common.proxy.controller import Controller
 
 monkey.patch_socket()
 
