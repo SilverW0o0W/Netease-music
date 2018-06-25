@@ -1,4 +1,5 @@
 # coding=utf-8
+import time
 import socket
 import datetime
 from .job import Mission, Job
@@ -68,6 +69,16 @@ class Master(Worker):
             pipe.lpush(self._ready_queue, job.job_id)
         pipe.execute()
 
+    def check_mission_done(self):
+        redis = self.linker.connect()
+        # check mission string format: 'check:mission_id'
+        check_missions = redis.smembers(self._check_queue)
+        if check_missions:
+            for check_mission in check_missions:
+                if redis.scard(check_mission) == 0:
+                    redis.srem(self._check_queue, check_mission)
+        time.sleep(5)
+
     def test_job(self):
         self.add_mission()
         self.logger.info('Job has done.')
@@ -99,8 +110,7 @@ class Slave(Worker):
         spider.write_in_slave(args[0], args[1], args[2], False)
         spider.dispose()
 
-    def test_job(self):
-        redis = self.linker.connect()
+    def work(self):
         while True:
             job = self.get_job()
             if not job:
@@ -108,6 +118,7 @@ class Slave(Worker):
             self.logger.info('Get new job. Id : {0}.', job.job_id)
             mission_id = job.job_id.split(':')[0]
             self.run_spider(job)
+            redis = self.linker.connect()
             redis.srem(self._waiting_queue, job.job_id)
             redis.srem(self.mark_check(mission_id), job.job_id)
             self.logger.debug('Remove job {0} in waiting queue.', job.job_id)
