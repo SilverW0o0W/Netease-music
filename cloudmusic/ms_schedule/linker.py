@@ -4,9 +4,9 @@ from redis import ConnectionPool, StrictRedis
 
 class Linker(object):
 
-    def __init__(self, url):
-        self.url = url
-        self.pool = ConnectionPool.from_url(url)
+    def __init__(self, redis_url):
+        self.url = redis_url
+        self.pool = ConnectionPool.from_url(redis_url)
 
     def connect(self):
         return StrictRedis(connection_pool=self.pool)

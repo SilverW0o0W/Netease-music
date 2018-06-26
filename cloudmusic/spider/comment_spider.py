@@ -93,11 +93,14 @@ class CommentSpider(object):
         else:
             return adapter.adapt_comment_set(content, song_id)
 
+    def get_comment_total(self, song_id, hot=False):
+        return self.request_comment_set(song_id, self.data(), hot=hot).total
+
     def get_comment(self, song_id, hot=False):
         """
         Get a song all comment
         """
-        total = self.request_comment_set(song_id, self.data(), hot=hot).total
+        total = self.get_comment_total(song_id, hot=hot)
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
         comment_dict = {}
@@ -124,7 +127,7 @@ class CommentSpider(object):
         """
         Write a song all comment
         """
-        total = self.request_comment_set(song_id, self.data(), hot=hot).total
+        total = self.get_comment_total(song_id, hot=hot)
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
         pool = g_pool.Pool(size=self._pool_size)

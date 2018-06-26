@@ -9,17 +9,37 @@ from cloudmusic.common.logger.logger import Logger
 
 
 class Worker(object):
+    _mission_queue = 'mission_list'
+    _completed_queue = 'completed_set'
     _ready_queue = 'ready_list'
     _waiting_queue = 'waiting_set'
     _check_queue = 'check_set'
+
+    # job_id = mission_id:index
+    _fmt_job_id = '{0}:{1}'
+    # check_mission_id = check:mission_id
+    _fmt_mission_id_in_check = 'check:{}'
+    # mission_args = type:param_list
+    _fmt_mission_args = '{0}:{1}'
+
+    _stop_signal = 'stop_signal'
     _ip_address = socket.gethostbyname(socket.gethostname())
 
-    def __init__(self, url):
-        self.linker = Linker(url)
+    def __init__(self, redis_url):
+        self.linker = Linker(redis_url)
 
-    @staticmethod
-    def mark_check(mission_id):
-        return 'check:{}'.format(mission_id)
+    @classmethod
+    def mark_check(cls, mission_id):
+        return cls._fmt_mission_id_in_check.format(mission_id)
+
+    def start(self):
+        while True:
+            redis = self.linker.connect()
+            result = redis.get(self._stop_signal)
+            stop_signal = False if not result else bool(result)
+            if stop_signal:
+                break
+            time.sleep(3)
 
 
 # add jobs
@@ -30,28 +50,46 @@ class Master(Worker):
     def __init__(self, url):
         super(Master, self).__init__(url)
         log_name = 'master_{}.log'.format(self._ip_address)
+        self.spider = CommentSpider(use_proxy=True)
         self.logger = Logger(log_name)
 
-    def add_mission(self):
-        mission = self.mission_job(3158)
+    @classmethod
+    def put_mission(cls, redis, song_id, hot=False):
+        mission_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[0:-3]
+        args = [song_id, hot]
+        mission_args = cls._fmt_mission_args.format(1, args)
+        pipe = redis.pipeline()
+        pipe.lpush(cls._mission_queue, mission_id)
+        pipe.set(mission_id, mission_args)
+        pipe.execute()
+        return mission_id
+
+    def generate_mission(self):
+        redis = self.linker.connect()
+        mission_id = redis.lpop(self._mission_queue)
+        mission_args = redis.get(mission_id)
+        job_type, args = mission_args.split(':')
+        song_id, hot = args[0], bool(args[1])
+        total = self.spider.get_comment_total(song_id, hot=hot)
+        mission = self.mission_job(song_id, total)
         self.write_mission(mission)
 
-    def mission_job(self, total):
+    def mission_job(self, song_id, total):
         mission_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[0:-3]
         self.logger.info('New mission id : {0}.', mission_id)
         step = 1000
         mission = Mission(mission_id)
         mission.jobs = [
-            self.job(mission.mission_id, '30482372', i, total if total < i + step else i + step)
+            self.job(mission.mission_id, song_id, 1, i, total if total < i + step else i + step)
             for i in range(0, total, step)
         ]
         self.logger.debug('Mission {0} job total: {1}.', mission_id, len(mission.jobs))
         return mission
 
-    @staticmethod
-    def job(job_id, object_id, index, end):
-        sub_job_id = '{0}:{1}'.format(job_id, str(index).zfill(8))
-        return Job(sub_job_id, 1, args=[object_id, index, end])
+    @classmethod
+    def job(cls, mission_id, job_type, object_id, index, end):
+        job_id = cls._fmt_job_id.format(mission_id, str(index).zfill(8))
+        return Job(job_id, job_type, args=[object_id, index, end])
 
     def write_mission(self, mission):
         redis = self.linker.connect()
@@ -77,11 +115,18 @@ class Master(Worker):
             for check_mission in check_missions:
                 if redis.scard(check_mission) == 0:
                     redis.srem(self._check_queue, check_mission)
+                    mission_id = check_mission.split(':')[1]
+                    redis.sadd(self._completed_queue, mission_id)
+                    self.logger.info('Mission {0} completed.', mission_id)
         time.sleep(5)
 
     def test_job(self):
-        self.add_mission()
+        self.generate_mission()
         self.logger.info('Job has done.')
+        self.logger.dispose()
+
+    def dispose(self):
+        self.spider.dispose()
         self.logger.dispose()
 
 
