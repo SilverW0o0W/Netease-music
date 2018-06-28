@@ -27,6 +27,7 @@ class Worker(object):
 
     def __init__(self, redis_url):
         self.linker = Linker(redis_url)
+        self.receive_stop = False
 
     @classmethod
     def mark_check(cls, mission_id):
@@ -63,6 +64,10 @@ class Master(Worker):
         pipe.set(mission_id, mission_args)
         pipe.execute()
         return mission_id
+
+    @classmethod
+    def stop(cls, redis):
+        redis.set(cls._stop_signal, True)
 
     def generate_mission(self):
         redis = self.linker.connect()
@@ -119,11 +124,6 @@ class Master(Worker):
                     redis.sadd(self._completed_queue, mission_id)
                     self.logger.info('Mission {0} completed.', mission_id)
         time.sleep(5)
-
-    def test_job(self):
-        self.generate_mission()
-        self.logger.info('Job has done.')
-        self.logger.dispose()
 
     def dispose(self):
         self.spider.dispose()
