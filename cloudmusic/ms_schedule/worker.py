@@ -39,8 +39,10 @@ class Worker(object):
             result = redis.get(self._stop_signal)
             stop_signal = False if not result else bool(result)
             if stop_signal:
+                self.receive_stop = True
                 break
             time.sleep(3)
+        # self.dispose()
 
 
 # add jobs
@@ -139,6 +141,10 @@ class Slave(Worker):
 
     def get_job(self):
         redis = self.linker.connect()
+        result = redis.get(self._stop_signal)
+        self.receive_stop = False if not result else bool(result)
+        if self.receive_stop:
+            return None
         data_tuple = redis.blpop(self._ready_queue, timeout=3)
         job_id = None
         if data_tuple is not None:
@@ -159,6 +165,9 @@ class Slave(Worker):
         while True:
             job = self.get_job()
             if not job:
+                time.sleep(3)
+                continue
+            if self.receive_stop:
                 break
             self.logger.info('Get new job. Id : {0}.', job.job_id)
             mission_id = job.job_id.split(':')[0]
