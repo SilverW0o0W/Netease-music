@@ -33,16 +33,10 @@ class Worker(object):
     def mark_check(cls, mission_id):
         return cls._fmt_mission_id_in_check.format(mission_id)
 
-    def start(self):
-        while True:
-            redis = self.linker.connect()
-            result = redis.get(self._stop_signal)
-            stop_signal = False if not result else bool(result)
-            if stop_signal:
-                self.receive_stop = True
-                break
-            time.sleep(3)
-        # self.dispose()
+    def check_stop(self, redis):
+        result = redis.get(self._stop_signal)
+        self.receive_stop = False if not result else bool(result)
+        return self.receive_stop
 
 
 # add jobs
@@ -71,15 +65,28 @@ class Master(Worker):
     def stop(cls, redis):
         redis.set(cls._stop_signal, True)
 
+    def start(self):
+        while True:
+            redis = self.linker.connect()
+            if self.check_stop(redis):
+                self.logger.info('Receive stop.')
+                break
+            self.generate_mission()
+            time.sleep(2)
+        self.dispose()
+
     def generate_mission(self):
         redis = self.linker.connect()
-        mission_id = redis.lpop(self._mission_queue)
-        mission_args = redis.get(mission_id)
-        job_type, args = mission_args.split(':')
-        song_id, hot = args[0], bool(args[1])
-        total = self.spider.get_comment_total(song_id, hot=hot)
-        mission = self.mission_job(song_id, total)
-        self.write_mission(mission)
+        for _ in range(3):
+            mission_id = redis.lpop(self._mission_queue)
+            if not mission_id:
+                break
+            mission_args = redis.get(mission_id)
+            job_type, args = mission_args.split(':')
+            song_id, hot = args[0], bool(args[1])
+            total = self.spider.get_comment_total(song_id, hot=hot)
+            mission = self.mission_job(song_id, total)
+            self.write_mission(mission)
 
     def mission_job(self, song_id, total):
         mission_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[0:-3]
@@ -141,9 +148,7 @@ class Slave(Worker):
 
     def get_job(self):
         redis = self.linker.connect()
-        result = redis.get(self._stop_signal)
-        self.receive_stop = False if not result else bool(result)
-        if self.receive_stop:
+        if self.check_stop(redis):
             return None
         data_tuple = redis.blpop(self._ready_queue, timeout=3)
         job_id = None
@@ -161,14 +166,14 @@ class Slave(Worker):
         spider.write_in_slave(args[0], args[1], args[2], False)
         spider.dispose()
 
-    def work(self):
+    def start(self):
         while True:
             job = self.get_job()
+            if self.receive_stop:
+                break
             if not job:
                 time.sleep(3)
                 continue
-            if self.receive_stop:
-                break
             self.logger.info('Get new job. Id : {0}.', job.job_id)
             mission_id = job.job_id.split(':')[0]
             self.run_spider(job)
