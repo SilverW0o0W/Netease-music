@@ -6,8 +6,8 @@ Download song playlist album picture.
 import os
 import requests
 
-from spider import api
-import spider.utils as utils
+from cloudmusic.spider import api
+import cloudmusic.spider.utils as utils
 
 
 class Avatar(object):

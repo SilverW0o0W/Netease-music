@@ -6,9 +6,9 @@ Download lyric
 import traceback
 import os
 import sys
-from spider import utils as utils
-from spider import adapter as adapter
-from spider import api
+from cloudmusic.spider import utils as utils
+from cloudmusic.spider import adapter as adapter
+from cloudmusic.spider import api
 
 reload(sys)
 sys.setdefaultencoding('utf8')

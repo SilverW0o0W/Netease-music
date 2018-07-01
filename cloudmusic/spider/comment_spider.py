@@ -6,16 +6,15 @@ Initialize a CommentSpider instance, add call function with a song id. Return So
 
 from gevent import monkey, pool as g_pool
 
-import traceback
 import time
 
 from . import adapter as adapter
 from .encrypto import generate_data
-from .logger.logger import Logger
+from cloudmusic.common.logger.logger import Logger
 from . import api
 from .comment_writer import CommentWriter
 
-from .proxy.controller import Controller
+from cloudmusic.common.proxy.controller import Controller
 
 monkey.patch_socket()
 
@@ -39,11 +38,12 @@ class CommentSpider(object):
     _limit = 20
     _pool_size = 20
 
-    def __init__(self, use_proxy=False, con_string=None):
+    def __init__(self, use_proxy=False, con_string=None, proxy=None):
         self.logger = Logger(name='comment.log')
         self.use_proxy = use_proxy
-        self.proxy_logger = Logger(name='proxy.log') if use_proxy else None
-        self.proxy = Controller(self.proxy_logger, False) if use_proxy else None
+        if use_proxy:
+            self.proxy_logger = Logger(name='proxy.log') if use_proxy else None
+            self.proxy = proxy if proxy else Controller(self.proxy_logger, False)
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
     @staticmethod
@@ -64,14 +64,13 @@ class CommentSpider(object):
     def data(self):
         return generate_data(self.text())
 
-    def post_data(self, total, limit=20):
+    def post_data(self, total, start=0, end=None, limit=20):
         """
         Get request encrypt data for one song
         """
-        page = 0 if total % limit == 0 else 1
-        page += total // limit
-        for i in range(page):
-            yield i, generate_data(self.text(i * limit, limit))
+        end = total if not end else end
+        for index in range(start, end, limit):
+            yield index // limit, generate_data(self.text(index, limit))
 
     def request_comment_set(self, song_id, data, hot=False):
         """
@@ -94,11 +93,14 @@ class CommentSpider(object):
         else:
             return adapter.adapt_comment_set(content, song_id)
 
+    def get_comment_total(self, song_id, hot=False):
+        return self.request_comment_set(song_id, self.data(), hot=hot).total
+
     def get_comment(self, song_id, hot=False):
         """
         Get a song all comment
         """
-        total = self.request_comment_set(song_id, self.data(), hot=hot).total
+        total = self.get_comment_total(song_id, hot=hot)
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
         comment_dict = {}
@@ -125,14 +127,11 @@ class CommentSpider(object):
         """
         Write a song all comment
         """
-        total = self.request_comment_set(song_id, self.data(), hot=hot).total
+        total = self.get_comment_total(song_id, hot=hot)
         self.logger.info('Comment total is {0}. Song id: {1}.', total, song_id)
         data_gen = self.post_data(total, limit=self._limit)
-        times = 0 if total % self._limit == 0 else 1
-        times += total // self._limit
-
         pool = g_pool.Pool(size=self._pool_size)
-        for _ in range(times):
+        for _ in range(0, total, self._limit):
             pool.spawn(self.write_wrapper, song_id, data_gen, hot)
         pool.join()
         self.logger.info('Write comment done. Song id: {}', song_id)
@@ -146,13 +145,21 @@ class CommentSpider(object):
         self.writer.send(comment.comments)
         self.logger.debug('Write comment {} done.', index)
 
-    def dispose(self):
+    def write_in_slave(self, song_id, start, end, hot=False):
+        start, end = int(start), int(end)
+        data_gen = self.post_data(0, start=start, end=end)
+        pool = g_pool.Pool(size=self._pool_size)
+        for _ in range(start, end, self._limit):
+            pool.spawn(self.write_wrapper, song_id, data_gen, hot)
+        pool.join()
+
+    def dispose(self, close_proxy=True):
         self.logger.info('Dispose spider.')
         self.logger.debug('Dispose writer.')
         if self.writer:
             self.writer.dispose()
         self.logger.debug('Dispose proxy.')
-        if self.use_proxy:
+        if self.use_proxy and close_proxy:
             self.proxy.dispose()
             self.proxy_logger.dispose()
         self.logger.info('Dispose spider done.')
