@@ -6,6 +6,7 @@ from .job import Mission, Job
 from .linker import Linker
 from cloudmusic.spider.comment_spider import CommentSpider
 from cloudmusic.common.logger.logger import Logger
+from cloudmusic.common.proxy.controller import Controller
 
 
 class Worker(object):
@@ -145,6 +146,8 @@ class Slave(Worker):
         super(Slave, self).__init__(url)
         log_name = 'slave_{}.log'.format(self._ip_address)
         self.logger = Logger(log_name)
+        self.proxy_logger = Logger('proxy.log')
+        self.proxy = Controller(self.proxy_logger, False)
 
     def get_job(self):
         redis = self.linker.connect()
@@ -160,11 +163,12 @@ class Slave(Worker):
 
     def run_spider(self, job):
         spider = CommentSpider(use_proxy=True,
-                               con_string='')
+                               con_string='',
+                               proxy=self.proxy)
         args = job.args
         self.logger.debug('Start new job. Id : {0}.', job.job_id)
         spider.write_in_slave(args[0], args[1], args[2], False)
-        spider.dispose()
+        spider.dispose(close_proxy=False)
 
     def start(self):
         while True:
