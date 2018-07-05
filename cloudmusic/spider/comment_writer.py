@@ -6,7 +6,7 @@ For write comment detail to DB
 import traceback
 from multiprocessing import Process
 from .process_handler import ProcessHandler, process_checker
-from . import comment_alchemy as alchemy
+from . import alchemy as alchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
