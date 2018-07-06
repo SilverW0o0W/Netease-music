@@ -2,7 +2,7 @@
 import unittest
 from datetime import datetime, timedelta
 from proxy.alchemy import DBWorker
-from proxy.proxy import Proxy
+from proxy.proxy_pool import Proxy
 
 
 class TestAlchemy(unittest.TestCase):

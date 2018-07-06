@@ -3,7 +3,6 @@
 This is for controlling proxy ip
 """
 
-
 import os
 import random
 import time
@@ -16,7 +15,6 @@ from gevent import monkey, pool as g_pool
 
 import requests
 
-from .proxy import Proxy, ProxySet
 from .spider import Spider
 from .alchemy import DBWorker
 
@@ -26,7 +24,73 @@ monkey.patch_socket()
 LOCK = threading.Lock()
 
 
-class Controller(object):
+class Proxy(object):
+    """
+    This is the class for ip information.
+    """
+
+    def __init__(self, ip, port, https, available=False, verified=None, created=None, id=None):
+        self.id = id
+        self.ip = ip
+        self.port = port
+        self.https = https
+        self.unique_id = self.unique_id()
+        self.available = available
+        now = datetime.now()
+        self.verified = verified if verified else now
+        self.created = created if created else now
+
+    def ip_port(self):
+        """
+        Get ip:port string.
+        """
+        return self.ip + ':' + self.port
+
+    def unique_id(self):
+        unique_id = ''
+        nums = self.ip.split('.')
+        for num in nums:
+            unique_id += num.zfill(3)
+        unique_id += self.port
+        unique_id += '1' if self.https else '0'
+        return unique_id
+
+
+class ProxyList(object):
+    """
+    This is the set class for proxy ip
+    """
+
+    _EXPIRE_TIME = 20
+
+    def __init__(self, proxies=None):
+        self.proxies = [] if not proxies else proxies
+        self.create_time = datetime.now()
+
+    def available(self):
+        """
+        Check set count and available time
+        """
+        time_now = datetime.now()
+        if len(self.proxies) < 1:
+            return False
+        delta = timedelta(seconds=self._EXPIRE_TIME)
+        return time_now < self.create_time + delta
+
+    def append(self, proxy_ip):
+        """
+        Append proxy ip
+        """
+        self.proxies.append(proxy_ip)
+
+    def pop(self):
+        """
+        Get a proxy ip
+        """
+        return self.proxies.pop()
+
+
+class ProxyPool(object):
     """
     This is a class for crawling proxy ip
     """
@@ -47,7 +111,7 @@ class Controller(object):
 
     _min_storage = 20
 
-    _cache_proxy_set = ProxySet()
+    _cache_proxy_set = ProxyList()
 
     def __init__(self, logger, https):
         self.logger = logger
@@ -69,7 +133,7 @@ class Controller(object):
         if not cls._instance:
             with LOCK:
                 if not cls._instance:
-                    cls._instance = super(Controller, cls).__new__(cls)
+                    cls._instance = super(ProxyPool, cls).__new__(cls)
         return cls._instance
 
     def check_proxy(self, proxy):
@@ -139,7 +203,7 @@ class Controller(object):
         proxies = self.select_proxies(count)
         proxies = self.convert_proxies(proxies)
         random.shuffle(proxies)
-        return ProxySet(proxies)
+        return ProxyList(proxies)
 
     def get_proxy(self):
         """

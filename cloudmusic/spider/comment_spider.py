@@ -14,7 +14,7 @@ from cloudmusic.common.logger.logger import Logger
 from . import api
 from .comment_writer import CommentWriter
 
-from cloudmusic.common.proxy.controller import Controller
+from cloudmusic.common.proxy import ProxyPool
 
 monkey.patch_socket()
 
@@ -43,7 +43,7 @@ class CommentSpider(object):
         self.use_proxy = use_proxy
         if use_proxy:
             self.proxy_logger = Logger(name='proxy.log') if use_proxy else None
-            self.proxy = proxy if proxy else Controller(self.proxy_logger, False)
+            self.proxy = proxy if proxy else ProxyPool(self.proxy_logger, False)
         self.writer = CommentWriter(self.logger, con_string) if con_string else None
 
     @staticmethod

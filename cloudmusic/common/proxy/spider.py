@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
-from .proxy import Proxy
+from .proxy_pool import Proxy
 
 
 class Spider(object):
