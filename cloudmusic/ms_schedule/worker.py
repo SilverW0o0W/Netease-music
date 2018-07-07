@@ -5,8 +5,8 @@ import datetime
 from .job import Mission, Job
 from .linker import Linker
 from cloudmusic.spider.comment_spider import CommentSpider
-from cloudmusic.common.logger.logger import Logger
-from cloudmusic.common.proxy.controller import Controller
+from cloudmusic.common.logger import Logger
+from cloudmusic.common.proxy import ProxyPool
 
 
 class Worker(object):
@@ -147,7 +147,7 @@ class Slave(Worker):
         log_name = 'slave_{}.log'.format(self._ip_address)
         self.logger = Logger(log_name)
         self.proxy_logger = Logger('proxy.log')
-        self.proxy = Controller(self.proxy_logger, False)
+        self.proxy = ProxyPool(self.proxy_logger, False)
 
     def get_job(self):
         redis = self.linker.connect()

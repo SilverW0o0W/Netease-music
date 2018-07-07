@@ -10,11 +10,12 @@ import time
 
 from . import adapter as adapter
 from .encrypto import generate_data
-from cloudmusic.common.logger.logger import Logger
+
 from . import api
 from .comment_writer import CommentWriter
 
-from cloudmusic.common.proxy import ProxyPool
+from cloudmusic.common import Logger
+from cloudmusic.common import ProxyPool
 
 monkey.patch_socket()
 
