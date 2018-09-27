@@ -1,0 +1,7 @@
+future
+pycryptodomex
+beautifulsoup4
+requests
+gevent
+sqlalchemy
+mysql-connector

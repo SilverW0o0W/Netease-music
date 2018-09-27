@@ -10,7 +10,7 @@ setup(
         'pycryptodomex',
         'beautifulsoup4',
         'requests',
-		'gevent',
+        'gevent',
         'sqlalchemy',
         'mysql-connector',
     ],
