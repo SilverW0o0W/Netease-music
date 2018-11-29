@@ -6,8 +6,9 @@ from __future__ import print_function
 import traceback
 import requests
 from urllib3.exceptions import HTTPError
-import encrypto
 import platform
+
+from cloudmusic.spider import encrypto
 
 _headers = {
     'Host': 'music.163.com',
