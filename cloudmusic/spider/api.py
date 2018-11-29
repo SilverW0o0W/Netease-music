@@ -6,7 +6,9 @@ from __future__ import print_function
 import traceback
 import requests
 from urllib3.exceptions import HTTPError
-from . import encrypto
+import platform
+
+from cloudmusic.spider import encrypto
 
 _headers = {
     'Host': 'music.163.com',
@@ -23,7 +25,7 @@ _headers = {
 timeout = 15
 
 
-def send_request(method, url, data=None, json=True, proxies=None):
+def send_request(method, url, data=None, json=True, cookies={}, proxies=None):
     """
     Send comment request.
     """
@@ -35,7 +37,9 @@ def send_request(method, url, data=None, json=True, proxies=None):
                 headers=_headers,
                 data=data,
                 proxies=proxies,
-                timeout=timeout
+                timeout=timeout,
+                verify=False,
+                cookies=cookies,
             )
             content = response.json() if json else response.content
         except (requests.RequestException, HTTPError, ValueError) as ex:
@@ -73,17 +77,20 @@ def request_playlist(playlist_id):
     """
     Crawl playlist detail.
     """
-    url = 'http://music.163.com/weapi/v3/playlist/detail'
+    url = 'https://music.163.com/weapi/v3/playlist/detail'
     # data = {'id': playlist_id, 'total': 'true', 'csrf_token': csrf, 'limit': 1000, 'n': 1000, 'offset': 0}
     text = {
         'id': playlist_id,
         'total': 'true',
-        # 'limit': 1000,
-        'n': 10000
-        # 'offset': 0
+        'limit': 1000,
+        'n': 1000,
+        'offest': 0
     }
+    cookies = dict(
+        os=platform.system()
+    )
     data = encrypto.generate_data(text)
-    content = send_request(method='POST', url=url, data=data)
+    content = send_request(method='POST', url=url, data=data, cookies=cookies)
     return content
 
 
