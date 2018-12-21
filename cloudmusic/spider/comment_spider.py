@@ -9,10 +9,10 @@ from gevent import monkey, pool as g_pool
 import time
 
 from . import adapter as adapter
-from .encrypto import generate_data
+from cloudmusic.api.encrypto import generate_data
 
-from . import api
-from .comment_writer import CommentWriter
+from cloudmusic.api import api
+from cloudmusic.spider.comment_writer import CommentWriter
 
 from cloudmusic.common import Logger
 from cloudmusic.common import ProxyPool
