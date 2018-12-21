@@ -2,7 +2,7 @@
 # coding=utf-8
 
 import unittest
-from cloudmusic.spider import api
+from cloudmusic.api import api
 
 
 class APITest(unittest.TestCase):

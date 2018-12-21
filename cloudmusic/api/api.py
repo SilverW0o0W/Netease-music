@@ -8,7 +8,7 @@ import requests
 from urllib3.exceptions import HTTPError
 import platform
 
-from cloudmusic.spider import encrypto
+from cloudmusic.api import encrypto
 
 _headers = {
     'Host': 'music.163.com',
@@ -52,13 +52,13 @@ def send_request(method, url, data=None, json=True, cookies=None, proxies=None):
 
 
 # url = 'http://music.163.com/api/song/detail?ids=[{}]'
-def request_songs(song_ids):
+def request_songs(song_ids, proxies=None):
     """
     Crawl song information.
     """
     str_song_ids = ",".join(map(lambda value: str(value), song_ids))
     url = 'http://music.163.com/api/song/detail?ids=[{}]'.format(str_song_ids)
-    data = send_request(method='POST', url=url)
+    data = send_request(method='POST', url=url, proxies=proxies)
     return {
         song["id"]: song
         for song in data.get("songs", [])
@@ -66,18 +66,18 @@ def request_songs(song_ids):
 
 
 # url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
-def request_lyric(song_id):
+def request_lyric(song_id, proxies=None):
     """
     Crawl song lyric.
     """
     url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
     url = str.format(url, song_id)
-    content = send_request(method='POST', url=url)
+    content = send_request(method='POST', url=url, proxies=proxies)
     return content
 
 
 # url = 'http://music.163.com/weapi/v3/playlist/detail'
-def request_playlist(playlist_id):
+def request_playlist(playlist_id, proxies=None):
     """
     Crawl playlist detail.
     """
@@ -94,27 +94,27 @@ def request_playlist(playlist_id):
         os=platform.system()
     )
     data = encrypto.generate_data(text)
-    content = send_request(method='POST', url=url, data=data, cookies=cookies)
+    content = send_request(method='POST', url=url, data=data, cookies=cookies, proxies=proxies)
     return content
 
 
 # url = 'http://music.163.com/api/artist/{}'
-def request_artist(artist_id):
+def request_artist(artist_id, proxies=None):
     """
     Crawl song information.
     """
     url = 'http://music.163.com/api/artist/{}'.format(artist_id)
-    content = send_request(method='GET', url=url)
+    content = send_request(method='GET', url=url, proxies=proxies)
     return content
 
 
 # url = 'http://music.163.com/api/album/{}'
-def request_album(album_id):
+def request_album(album_id, proxies=None):
     """
     Crawl album information.
     :param album_id:
     :return: JSON content
     """
     url = 'http://music.163.com/api/album/{}'.format(album_id)
-    content = send_request(method='GET', url=url)
+    content = send_request(method='GET', url=url, proxies=proxies)
     return content

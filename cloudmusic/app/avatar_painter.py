@@ -6,7 +6,7 @@ Download song playlist album picture.
 import os
 import requests
 
-from cloudmusic.spider import api
+from cloudmusic.api import api
 import cloudmusic.spider.utils as utils
 
 
