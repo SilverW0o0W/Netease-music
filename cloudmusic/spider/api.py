@@ -25,7 +25,7 @@ _headers = {
 timeout = 15
 
 
-def send_request(method, url, data=None, json=True, cookies={}, proxies=None):
+def send_request(method, url, data=None, json=True, cookies=None, proxies=None):
     """
     Send comment request.
     """
@@ -52,13 +52,17 @@ def send_request(method, url, data=None, json=True, cookies={}, proxies=None):
 
 
 # url = 'http://music.163.com/api/song/detail?ids=[{}]'
-def request_song(song_id):
+def request_songs(song_ids):
     """
     Crawl song information.
     """
-    url = 'http://music.163.com/api/song/detail?ids=[{}]'.format(song_id)
-    content = send_request(method='POST', url=url)
-    return content
+    str_song_ids = ",".join(map(lambda value: str(value), song_ids))
+    url = 'http://music.163.com/api/song/detail?ids=[{}]'.format(str_song_ids)
+    data = send_request(method='POST', url=url)
+    return {
+        song["id"]: song
+        for song in data.get("songs", [])
+    }
 
 
 # url = 'http://music.163.com/api/song/lyric?id={0}&lv=1&tv=1'
