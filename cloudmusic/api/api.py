@@ -3,7 +3,6 @@
 Request music api
 """
 from __future__ import print_function
-import traceback
 import requests
 from urllib3.exceptions import HTTPError
 import platform
@@ -46,8 +45,6 @@ def send_request(method, url, data=None, json=True, cookies=None, proxies=None):
             print(proxies, end=''),
             print(ex)
             content = None
-        except Exception:
-            print(traceback.format_exc())
     return content
 
 
